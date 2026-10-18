@@ -1,0 +1,41 @@
+# ─── Environment & Secrets ────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── IDE & Editor ─────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# ─── OS Files & Metadata ──────────────────────────────
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+.DS_Store
+Desktop.ini
+$RECYCLE.BIN/
+
+# ─── Logs, Dumps & Caches ─────────────────────────────
+*.log
+*.tmp
+*.bak
+*.cache
+*.sql.gz
+*.sql.zip
+
+# ─── Dependencies ─────────────────────────────────────
+/vendor/
+/node_modules/
+
+# ─── Local Reference & Scratch Files ─────────────────
+/*.png
+*.docx
+design_skills.md
+front-end_skills.md
+IMPLEMENTATION_PLAN.md
+walkthrough-workflow/
