@@ -92,7 +92,9 @@ $classes = $stmt->fetchAll();
                                 </span>
                             </td>
                             <td class="text-center">
-                                <span class="badge bg-primary"><?php echo $cls['enrolled']; ?></span>
+                                <a href="students.php?class_id=<?php echo $cls['class_id']; ?>" class="badge bg-primary text-decoration-none" title="View Class Roster & OCR Ingestion">
+                                    <i class="bi bi-people me-1"></i><?php echo $cls['enrolled']; ?>
+                                </a>
                             </td>
                             <td class="text-center">
                                 <span class="badge bg-secondary"><?php echo $cls['sessions']; ?></span>
@@ -108,12 +110,16 @@ $classes = $stmt->fetchAll();
                                 <span class="fw-bold text-dark"><?php echo number_format($cls['passing_threshold'], 1); ?>%</span>
                             </td>
                             <td class="text-center">
-                                <div class="btn-group btn-group-sm">
-                                    <a href="students.php?class_id=<?php echo $cls['class_id']; ?>" class="btn btn-subtle" title="Roster & OCR Enrollment"><i class="bi bi-person-lines-fill text-primary"></i></a>
-                                    <a href="sessions.php?class_id=<?php echo $cls['class_id']; ?>" class="btn btn-subtle" title="Sessions"><i class="bi bi-calendar-event text-dark"></i></a>
-                                    <a href="attendance.php?class_id=<?php echo $cls['class_id']; ?>" class="btn btn-subtle" title="Attendance"><i class="bi bi-calendar-check text-success"></i></a>
-                                    <a href="grading-components.php?class_id=<?php echo $cls['class_id']; ?>" class="btn btn-subtle" title="Weights"><i class="bi bi-sliders text-dark"></i></a>
-                                    <a href="grades.php?class_id=<?php echo $cls['class_id']; ?>" class="btn btn-subtle" title="Enter Scores"><i class="bi bi-pencil-square text-dark"></i></a>
+                                <div class="d-flex align-items-center justify-content-center gap-1">
+                                    <a href="students.php?class_id=<?php echo $cls['class_id']; ?>" class="btn btn-sm btn-subtle text-primary fw-semibold" title="Class Roster & OCR Enrollment">
+                                        <i class="bi bi-person-lines-fill me-1"></i>Roster & OCR
+                                    </a>
+                                    <a href="attendance.php?class_id=<?php echo $cls['class_id']; ?>" class="btn btn-sm btn-subtle text-success" title="Attendance">
+                                        <i class="bi bi-calendar-check"></i>
+                                    </a>
+                                    <a href="grades.php?class_id=<?php echo $cls['class_id']; ?>" class="btn btn-sm btn-subtle text-dark" title="Enter Scores">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </a>
                                 </div>
                             </td>
                         </tr>

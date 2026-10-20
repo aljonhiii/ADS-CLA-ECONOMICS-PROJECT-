@@ -112,11 +112,82 @@ document.addEventListener('DOMContentLoaded', function () {
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
             closeAllDropdowns();
+            document.querySelectorAll('.modal.show').forEach(m => {
+                m.classList.remove('show');
+            });
+            document.body.style.overflow = '';
             const sb = document.getElementById('sidebar');
             const ov = document.getElementById('sidebarOverlay');
             if (sb) sb.classList.remove('show');
             if (ov) ov.classList.remove('show');
         }
+    });
+
+    // ─── Plain CSS Tab Controller ([data-tab-target]) ───
+    document.querySelectorAll('[data-tab-target]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            const targetSelector = this.getAttribute('data-tab-target');
+            const targetPane = document.querySelector(targetSelector);
+            if (!targetPane) return;
+
+            // Deactivate all sibling tab buttons
+            const nav = this.closest('.tabs-nav');
+            if (nav) {
+                nav.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            }
+            this.classList.add('active');
+
+            // Deactivate all sibling tab panes
+            const container = targetPane.parentElement;
+            if (container) {
+                container.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            }
+            targetPane.classList.add('active');
+        });
+    });
+
+    // ─── Plain CSS Modal Controller ─────────────────────
+    function openModal(modalSelector) {
+        const modal = document.querySelector(modalSelector);
+        if (!modal) return;
+        modal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        const firstInput = modal.querySelector('input:not([type="hidden"]), select, textarea');
+        if (firstInput) setTimeout(() => firstInput.focus(), 100);
+    }
+
+    function closeModal(modalEl) {
+        if (!modalEl) return;
+        modalEl.classList.remove('show');
+        if (!document.querySelector('.modal.show')) {
+            document.body.style.overflow = '';
+        }
+    }
+
+    document.querySelectorAll('[data-modal-open]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            const target = this.getAttribute('data-modal-open');
+            openModal(target);
+        });
+    });
+
+    document.querySelectorAll('[data-modal-close]').forEach(function (btn) {
+        btn.addEventListener('click', function (e) {
+            e.preventDefault();
+            const modal = this.closest('.modal');
+            closeModal(modal);
+        });
+    });
+
+    // Close on backdrop click (clicking outside .modal-dialog)
+    document.querySelectorAll('.modal').forEach(function (modal) {
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) {
+                closeModal(modal);
+            }
+        });
     });
 
     // ─── Confirmation Prompts ([data-confirm]) ──────────

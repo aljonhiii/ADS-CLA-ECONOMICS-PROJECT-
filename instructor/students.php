@@ -59,6 +59,9 @@ if ($class_id > 0) {
 $ocr_result = null;
 $parsed_data = null;
 $active_tab = 'roster';
+if (isset($_GET['tab']) && in_array($_GET['tab'], ['roster', 'ocr'], true)) {
+    $active_tab = $_GET['tab'];
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $class_id > 0) {
     verify_csrf();
@@ -337,7 +340,7 @@ if ($class_id > 0) {
                 </select>
             </div>
             <div class="col-md-3 d-flex align-items-end">
-                <button type="button" class="btn btn-subtle w-100" data-bs-toggle="modal" data-bs-target="#manualAddModal" <?php echo $class_id === 0 ? 'disabled' : ''; ?>>
+                <button type="button" class="btn btn-subtle w-100" data-modal-open="#manualAddModal" <?php echo $class_id === 0 ? 'disabled' : ''; ?>>
                     <i class="bi bi-person-plus text-success me-1"></i> Add Single Student
                 </button>
             </div>
@@ -346,26 +349,22 @@ if ($class_id > 0) {
 </div>
 
 <?php if ($class_id > 0 && $class_info): ?>
-    <!-- Navigation Tabs (Donezo Clean Style) -->
-    <ul class="nav nav-pills mb-3" id="rosterTabs" role="tablist">
-        <li class="nav-item" role="presentation">
-            <button class="nav-link <?php echo $active_tab === 'roster' ? 'active' : ''; ?> fw-semibold" id="roster-tab" data-bs-toggle="pill" data-bs-target="#roster-pane" type="button" role="tab">
-                <i class="bi bi-people me-1"></i> Current Enrolled Roster (<?php echo count($enrolled_students); ?>)
-            </button>
-        </li>
-        <li class="nav-item" role="presentation">
-            <button class="nav-link <?php echo $active_tab === 'ocr' ? 'active' : ''; ?> fw-semibold" id="ocr-tab" data-bs-toggle="pill" data-bs-target="#ocr-pane" type="button" role="tab">
-                <i class="bi bi-camera me-1"></i> OCR Document / Image Ingestion
-            </button>
-        </li>
-    </ul>
+    <!-- Navigation Tabs (Plain CSS) -->
+    <div class="tabs-nav" id="rosterTabs" role="tablist">
+        <button class="tab-btn <?php echo $active_tab === 'roster' ? 'active' : ''; ?>" data-tab-target="#roster-pane" type="button">
+            <i class="bi bi-people me-1"></i> Current Enrolled Roster (<?php echo count($enrolled_students); ?>)
+        </button>
+        <button class="tab-btn <?php echo $active_tab === 'ocr' ? 'active' : ''; ?>" data-tab-target="#ocr-pane" type="button">
+            <i class="bi bi-camera me-1"></i> OCR Document / Image Ingestion
+        </button>
+    </div>
 
     <div class="tab-content" id="rosterTabsContent">
         
         <!-- ═══════════════════════════════════════════════════════
              TAB 1: CURRENT ENROLLED ROSTER
              ═══════════════════════════════════════════════════════ -->
-        <div class="tab-pane fade <?php echo $active_tab === 'roster' ? 'show active' : ''; ?>" id="roster-pane" role="tabpanel">
+        <div class="tab-pane <?php echo $active_tab === 'roster' ? 'active' : ''; ?>" id="roster-pane" role="tabpanel">
             <div class="card shadow-sm border-0 mb-4">
                 <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <div class="d-flex align-items-center gap-2">
@@ -446,7 +445,7 @@ if ($class_id > 0) {
         <!-- ═══════════════════════════════════════════════════════
              TAB 2: OCR DOCUMENT / IMAGE INGESTION
              ═══════════════════════════════════════════════════════ -->
-        <div class="tab-pane fade <?php echo $active_tab === 'ocr' ? 'show active' : ''; ?>" id="ocr-pane" role="tabpanel">
+        <div class="tab-pane <?php echo $active_tab === 'ocr' ? 'active' : ''; ?>" id="ocr-pane" role="tabpanel">
             
             <!-- Upload Box Card -->
             <div class="card shadow-sm border-0 mb-4">
@@ -652,56 +651,54 @@ if ($class_id > 0) {
 <!-- ═══════════════════════════════════════════════════════════
      MODAL: MANUAL ADD SINGLE STUDENT
      ═══════════════════════════════════════════════════════════ -->
-<div class="modal fade" id="manualAddModal" tabindex="-1" aria-labelledby="manualAddModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-light border-bottom">
-                <h5 class="modal-title fw-bold" id="manualAddModalLabel">
-                    <i class="bi bi-person-plus text-success me-2"></i>Add Single Student
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form method="POST">
-                <?php echo csrf_field(); ?>
-                <input type="hidden" name="action" value="manual_enroll">
-                <div class="modal-body p-4">
-                    <div class="mb-3">
-                        <label class="form-label small fw-semibold text-muted">Student Number <span class="text-danger">*</span></label>
-                        <input type="text" name="student_number" class="form-control font-monospace" placeholder="e.g. 2023-00123" required>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-muted">First Name <span class="text-danger">*</span></label>
-                            <input type="text" name="first_name" class="form-control" placeholder="Juan" required>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-muted">Last Name <span class="text-danger">*</span></label>
-                            <input type="text" name="last_name" class="form-control" placeholder="Dela Cruz" required>
-                        </div>
-                    </div>
-                    <div class="row g-2 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-muted">Middle Name</label>
-                            <input type="text" name="middle_name" class="form-control" placeholder="Santos">
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label small fw-semibold text-muted">Year & Section</label>
-                            <input type="text" name="yr_section" class="form-control" placeholder="e.g. BSCS 3-A" value="1-A">
-                        </div>
-                    </div>
-                    <div class="mb-2">
-                        <label class="form-label small fw-semibold text-muted">Email Address (Optional)</label>
-                        <input type="email" name="email" class="form-control" placeholder="juan.delacruz@school.edu">
-                    </div>
-                </div>
-                <div class="modal-footer bg-light border-top">
-                    <button type="button" class="btn btn-subtle" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-forest px-4">
-                        <i class="bi bi-check-lg me-1"></i> Enroll Student
-                    </button>
-                </div>
-            </form>
+<div class="modal" id="manualAddModal" role="dialog" aria-modal="true" aria-labelledby="manualAddModalLabel">
+    <div class="modal-dialog">
+        <div class="modal-header">
+            <h5 class="modal-title" id="manualAddModalLabel">
+                <i class="bi bi-person-plus text-success me-2"></i>Add Single Student
+            </h5>
+            <button type="button" class="btn-close" data-modal-close aria-label="Close"></button>
         </div>
+        <form method="POST">
+            <?php echo csrf_field(); ?>
+            <input type="hidden" name="action" value="manual_enroll">
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label small fw-semibold text-muted">Student Number <span class="text-danger">*</span></label>
+                    <input type="text" name="student_number" class="form-control font-monospace" placeholder="e.g. 2023-00123" required>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-muted">First Name <span class="text-danger">*</span></label>
+                        <input type="text" name="first_name" class="form-control" placeholder="Juan" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-muted">Last Name <span class="text-danger">*</span></label>
+                        <input type="text" name="last_name" class="form-control" placeholder="Dela Cruz" required>
+                    </div>
+                </div>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-muted">Middle Name</label>
+                        <input type="text" name="middle_name" class="form-control" placeholder="Santos">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label small fw-semibold text-muted">Year & Section</label>
+                        <input type="text" name="yr_section" class="form-control" placeholder="e.g. BSCS 3-A" value="1-A">
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <label class="form-label small fw-semibold text-muted">Email Address (Optional)</label>
+                    <input type="email" name="email" class="form-control" placeholder="juan.delacruz@school.edu">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-subtle" data-modal-close>Cancel</button>
+                <button type="submit" class="btn btn-forest px-4">
+                    <i class="bi bi-check-lg me-1"></i> Enroll Student
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
