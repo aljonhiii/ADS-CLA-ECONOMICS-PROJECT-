@@ -37,9 +37,28 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+def find_tesseract_binary() -> Optional[str]:
+    """Find tesseract binary in PATH or common Windows install locations."""
+    which_path = shutil.which("tesseract")
+    if which_path:
+        return which_path
+
+    # Common Windows install paths (e.g. UB-Mannheim or default installer)
+    common_paths = [
+        r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+        r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\Tesseract-OCR\tesseract.exe"),
+        r"D:\Tesseract-OCR\tesseract.exe",
+        r"D:\xampp\Tesseract-OCR\tesseract.exe",
+    ]
+    for p in common_paths:
+        if os.path.isfile(p):
+            return p
+    return None
+
 def is_tesseract_available() -> bool:
-    """Check if the tesseract binary is installed and executable in PATH."""
-    return shutil.which("tesseract") is not None
+    """Check if the tesseract binary is installed and executable."""
+    return find_tesseract_binary() is not None
 
 @app.get("/health")
 def health_check():
@@ -126,13 +145,16 @@ def process_image(content: bytes, filename: str) -> dict:
     if image.mode in ("RGBA", "P"):
         image = image.convert("RGB")
 
-    if not is_tesseract_available():
-        logger.warning("Tesseract binary not found in system PATH. Returning placeholder.")
+    tess_path = find_tesseract_binary()
+    if not tess_path:
+        logger.warning("Tesseract binary not found on host. Returning placeholder.")
         return {
             "text": f"[Tesseract binary not installed on host. Filename: {filename}]",
             "pages": 1,
             "is_scanned": True
         }
+
+    pytesseract.pytesseract.tesseract_cmd = tess_path
 
     # Run OCR with layout analysis (PSM 4 or 6: assume single uniform block or column of text)
     custom_config = r'--oem 3 --psm 6'
@@ -176,7 +198,8 @@ def process_pdf(content: bytes, filename: str) -> dict:
     # Otherwise, the PDF has scanned image pages: convert to images and run Tesseract
     logger.info(f"PDF '{filename}' appears scanned. Converting pages to images for OCR...")
     
-    if not is_tesseract_available():
+    tess_path = find_tesseract_binary()
+    if not tess_path:
         logger.warning("Tesseract binary not found on host. Returning digital text fallback.")
         return {
             "text": combined_digital_text or f"[Scanned PDF without Tesseract installed on host: {filename}]",
@@ -187,6 +210,8 @@ def process_pdf(content: bytes, filename: str) -> dict:
     try:
         from pdf2image import convert_from_bytes
         import pytesseract
+        
+        pytesseract.pytesseract.tesseract_cmd = tess_path
         
         images = convert_from_bytes(content, first_page=1, last_page=MAX_PAGES)
         ocr_texts = []
