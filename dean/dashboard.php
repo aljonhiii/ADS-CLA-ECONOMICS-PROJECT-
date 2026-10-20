@@ -199,6 +199,7 @@ $recent_classes = $stmt->fetchAll();
                     </tbody>
                 </table>
             </div>
+        </div>
     </div>
 </div>
 

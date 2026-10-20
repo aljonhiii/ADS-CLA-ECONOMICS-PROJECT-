@@ -81,6 +81,53 @@ document.addEventListener('DOMContentLoaded', function () {
         }, timeoutMs);
     });
 
+    // ─── Plain CSS Dropdown Support ([data-dropdown]) ───
+    function closeAllDropdowns(exceptMenu) {
+        document.querySelectorAll('.dropdown-menu.show').forEach(function (menu) {
+            if (menu === exceptMenu) return;
+            menu.classList.remove('show');
+            const toggle = menu.parentElement?.querySelector('[data-dropdown]');
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
+        });
+    }
+
+    document.querySelectorAll('[data-dropdown]').forEach(function (toggle) {
+        toggle.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const menu = toggle.parentElement?.querySelector('.dropdown-menu');
+            if (!menu) return;
+            const willOpen = !menu.classList.contains('show');
+            closeAllDropdowns(menu);
+            menu.classList.toggle('show', willOpen);
+            toggle.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+        });
+    });
+
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.dropdown-menu')) {
+            closeAllDropdowns();
+        }
+    });
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            closeAllDropdowns();
+            const sb = document.getElementById('sidebar');
+            const ov = document.getElementById('sidebarOverlay');
+            if (sb) sb.classList.remove('show');
+            if (ov) ov.classList.remove('show');
+        }
+    });
+
+    // ─── Confirmation Prompts ([data-confirm]) ──────────
+    document.querySelectorAll('[data-confirm]').forEach(function (el) {
+        el.addEventListener('click', function (e) {
+            if (!confirm(this.getAttribute('data-confirm') || 'Are you sure?')) {
+                e.preventDefault();
+            }
+        });
+    });
+
     // ─── Sidebar Toggle (Mobile) ────────────────────────
     const sidebarToggle = document.getElementById('sidebarToggle');
     const sidebar = document.getElementById('sidebar');

@@ -342,8 +342,9 @@ require_once __DIR__ . '/../includes/header.php';
                         <tbody>
                             <?php foreach ($students as $idx => $st): 
                                 $student_full_name = $st['last_name'] . ', ' . $st['first_name'];
+                                $is_failing = (($st['final_status'] ?? '') === 'Fail');
                             ?>
-                                <tr data-sc-id="<?php echo $st['student_class_id']; ?>" data-threshold="<?php echo (float)$current_class['passing_threshold']; ?>">
+                                <tr class="<?php echo $is_failing ? 'row-fail' : ''; ?>" data-sc-id="<?php echo $st['student_class_id']; ?>" data-threshold="<?php echo (float)$current_class['passing_threshold']; ?>">
                                     <td class="text-muted"><?php echo $idx + 1; ?></td>
                                     <td>
                                         <span class="badge bg-secondary font-monospace">

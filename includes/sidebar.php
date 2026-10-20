@@ -24,9 +24,9 @@ function is_active(string $page, string $dir = ''): string {
 <!-- Sidebar Overlay (mobile) -->
 <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
-<!-- Sidebar (Donezo Reference) -->
+<!-- Sidebar -->
 <nav class="sidebar" id="sidebar">
-    <div class="nav flex-column gap-1">
+    <div class="nav flex-column gap-1" role="navigation" aria-label="Main">
         <?php if ($role === 'dean'): ?>
             <!-- ═══ ADMIN NAV (DEAN) ═══ -->
             <div class="sidebar-section-title">Admin Menu</div>
@@ -53,7 +53,7 @@ function is_active(string $page, string $dir = ''): string {
                 <i class="bi bi-calendar-check"></i><span>Attendance Logs</span>
             </a>
             <a class="nav-link <?php echo is_active('grades.php', 'dean'); ?>" href="<?php echo APP_BASE; ?>/dean/grades.php">
-                <i class="bi bi-award"></i><span>Grade Distributions</span>
+                <i class="bi bi-award"></i><span>Gradebook Audit</span>
             </a>
 
         <?php elseif ($role === 'instructor'): ?>
@@ -90,15 +90,13 @@ function is_active(string $page, string $dir = ''): string {
         <?php endif; ?>
     </div>
 
-    <!-- Donezo-Style Bottom Status Card -->
-    <div class="sidebar-promo-card mt-auto">
+    <!-- Footer card -->
+    <div class="sidebar-footer">
         <div class="d-flex align-items-center gap-2 mb-2">
-            <span class="badge bg-white text-dark rounded-pill fw-bold" style="font-size: 0.65rem;">ACTIVE TERM</span>
-            <small class="text-white-50" style="font-size: 0.7rem;"><?php echo date('M Y'); ?></small>
+            <span class="term-chip">ACTIVE TERM</span>
+            <small class="meta"><?php echo date('M Y'); ?></small>
         </div>
-        <div class="fw-bold small text-white mb-1">Academic Portal v2.0</div>
-        <div class="text-white-50" style="font-size: 0.72rem; line-height: 1.3;">
-            Real-time enrollment & grading records online.
-        </div>
+        <div class="fw-bold small text-white mb-1">BSE-SPMS</div>
+        <div class="meta">BS Economics Program<br>College of Liberal Arts, WMSU</div>
     </div>
 </nav>

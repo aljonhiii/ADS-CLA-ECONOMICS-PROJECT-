@@ -145,6 +145,14 @@ $pass_rate = $total_enrolled > 0 ? round(($pass_count / $total_enrolled) * 100, 
     </div>
 </div>
 
+<?php if ($fail_count > 0 && $status_filter !== 'Fail'): ?>
+    <div class="alert alert-danger mb-3 d-flex align-items-center">
+        <i class="bi bi-exclamation-triangle-fill fs-5 me-2"></i>
+        <div><strong><?php echo $fail_count; ?> student<?php echo $fail_count === 1 ? '' : 's'; ?> failing</strong> in this class.</div>
+        <a href="grades.php?class_id=<?php echo $class_id; ?>&status=Fail" class="btn btn-sm btn-subtle ms-auto">Show failing only</a>
+    </div>
+<?php endif; ?>
+
 <!-- KPI Metrics for Selected Class (Donezo Style) -->
 <div class="row g-3 mb-4">
     <!-- Hero Card: Pass Rate -->
@@ -241,7 +249,7 @@ $pass_rate = $total_enrolled > 0 ? round(($pass_count / $total_enrolled) * 100, 
                     <?php foreach ($students as $idx => $st): 
                         $sc_id = $st['student_class_id'];
                     ?>
-                        <tr>
+                        <tr class="<?php echo ($st['final_status'] === 'Fail') ? 'row-fail' : ''; ?>">
                             <td class="text-muted small"><?php echo $idx + 1; ?></td>
                             <td>
                                 <span class="font-monospace fw-bold text-dark"><?php echo e($st['student_number']); ?></span>

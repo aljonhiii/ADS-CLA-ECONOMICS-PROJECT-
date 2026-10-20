@@ -335,6 +335,12 @@ $att_rate = $tot_stu > 0 ? round((($pres_cnt + $late_cnt) / $tot_stu) * 100, 1) 
             <div class="d-flex align-items-center gap-3">
                 <span class="fw-bold text-dark fs-6"><i class="bi bi-people me-2 text-success"></i>Student Roster</span>
                 <span class="badge bg-secondary" data-count-for="attendanceRosterTable"><?php echo count($students); ?> enrolled</span>
+                <div class="att-summary d-none d-md-flex align-items-center gap-1" id="attendanceTally" aria-live="polite">
+                    <span class="badge bg-success">Present <strong class="ms-1" data-count="Present"><?php echo $pres_cnt; ?></strong></span>
+                    <span class="badge bg-danger">Absent <strong class="ms-1" data-count="Absent"><?php echo $abs_cnt; ?></strong></span>
+                    <span class="badge bg-warning">Late <strong class="ms-1" data-count="Late"><?php echo $late_cnt; ?></strong></span>
+                    <span class="badge bg-info">Excused <strong class="ms-1" data-count="Excused"><?php echo $exc_cnt; ?></strong></span>
+                </div>
             </div>
             <div class="d-flex flex-wrap align-items-center gap-2">
                 <div class="input-group input-group-sm" style="max-width: 220px;">
