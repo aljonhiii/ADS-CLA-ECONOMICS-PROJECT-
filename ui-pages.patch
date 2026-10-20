@@ -1,0 +1,90 @@
+diff -ruN a/dean/dashboard.php b/dean/dashboard.php
+--- a/dean/dashboard.php	2026-10-19 20:39:37.564850609 +0000
++++ b/dean/dashboard.php	2026-10-19 20:39:37.864896618 +0000
+@@ -199,6 +199,7 @@
+                     </tbody>
+                 </table>
+             </div>
++        </div>
+     </div>
+ </div>
+ 
+diff -ruN a/dean/grades.php b/dean/grades.php
+--- a/dean/grades.php	2026-10-19 20:39:37.472850603 +0000
++++ b/dean/grades.php	2026-10-19 20:39:37.864532657 +0000
+@@ -145,7 +145,15 @@
+     </div>
+ </div>
+ 
+-<!-- KPI Metrics for Selected Class (Donezo Style) -->
++<?php if ($fail_count > 0 && $status_filter !== 'Fail'): ?>
++    <div class="alert alert-danger">
++        <i class="bi bi-exclamation-triangle-fill fs-5"></i>
++        <div><strong><?php echo $fail_count; ?> student<?php echo $fail_count === 1 ? '' : 's'; ?> failing</strong> in this class.</div>
++        <a href="grades.php?class_id=<?php echo $class_id; ?>&status=Fail" class="btn btn-sm btn-subtle ms-auto">Show failing only</a>
++    </div>
++<?php endif; ?>
++
++<!-- KPI Metrics for Selected Class -->
+ <div class="row g-3 mb-4">
+     <!-- Hero Card: Pass Rate -->
+     <div class="col-sm-6 col-xl-3">
+@@ -241,7 +249,7 @@
+                     <?php foreach ($students as $idx => $st): 
+                         $sc_id = $st['student_class_id'];
+                     ?>
+-                        <tr>
++                        <tr class="<?php echo ($st['final_status'] === 'Fail') ? 'row-fail' : ''; ?>">
+                             <td class="text-muted small"><?php echo $idx + 1; ?></td>
+                             <td>
+                                 <span class="font-monospace fw-bold text-dark"><?php echo e($st['student_number']); ?></span>
+diff -ruN a/instructor/attendance.php b/instructor/attendance.php
+--- a/instructor/attendance.php	2026-10-19 20:39:37.836850625 +0000
++++ b/instructor/attendance.php	2026-10-19 20:39:37.864820376 +0000
+@@ -263,6 +263,12 @@
+                 <span class="fw-bold text-dark"><i class="bi bi-people me-2 text-success"></i>Student Roster</span>
+                 <span class="text-muted small ms-2">(<?php echo count($students); ?> enrolled)</span>
+             </div>
++            <div class="att-summary" id="attendanceTally" aria-live="polite">
++                <span class="badge bg-success">Present <strong class="ms-1" data-count="Present">0</strong></span>
++                <span class="badge bg-danger">Absent <strong class="ms-1" data-count="Absent">0</strong></span>
++                <span class="badge bg-warning">Late <strong class="ms-1" data-count="Late">0</strong></span>
++                <span class="badge bg-info">Excused <strong class="ms-1" data-count="Excused">0</strong></span>
++            </div>
+             <div>
+                 <button type="button" class="btn btn-sm btn-subtle" id="markAllPresent">
+                     <i class="bi bi-check-all text-success me-1"></i> Mark All Present
+diff -ruN a/instructor/grades.php b/instructor/grades.php
+--- a/instructor/grades.php	2026-10-19 20:39:37.692850616 +0000
++++ b/instructor/grades.php	2026-10-19 20:39:37.864714071 +0000
+@@ -311,7 +311,7 @@
+                         </thead>
+                         <tbody>
+                             <?php foreach ($students as $idx => $st): ?>
+-                                <tr>
++                                <tr class="<?php echo (($st['final_status'] ?? '') === 'Fail') ? 'row-fail' : ''; ?>">
+                                     <td class="text-muted"><?php echo $idx + 1; ?></td>
+                                     <td>
+                                         <span class="badge bg-secondary font-monospace">
+@@ -376,21 +376,4 @@
+     <?php endif; ?>
+ <?php endif; ?>
+ 
+-<script>
+-document.addEventListener('DOMContentLoaded', function() {
+-    const inputs = document.querySelectorAll('.score-input');
+-    inputs.forEach(input => {
+-        input.addEventListener('input', function() {
+-            const max = parseFloat(this.getAttribute('data-max'));
+-            const val = parseFloat(this.value);
+-            if (val > max) {
+-                this.classList.add('is-invalid');
+-            } else {
+-                this.classList.remove('is-invalid');
+-            }
+-        });
+-    });
+-});
+-</script>
+-
+ <?php require_once __DIR__ . '/../includes/footer.php'; ?>

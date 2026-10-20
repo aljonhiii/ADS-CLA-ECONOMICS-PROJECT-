@@ -311,7 +311,7 @@ require_once __DIR__ . '/../includes/header.php';
                         </thead>
                         <tbody>
                             <?php foreach ($students as $idx => $st): ?>
-                                <tr>
+                                   <tr class="<?php echo (($st['final_status'] ?? '') === 'Fail') ? 'row-fail' : ''; ?>">
                                     <td class="text-muted"><?php echo $idx + 1; ?></td>
                                     <td>
                                         <span class="badge bg-secondary font-monospace">
@@ -375,22 +375,5 @@ require_once __DIR__ . '/../includes/header.php';
         </form>
     <?php endif; ?>
 <?php endif; ?>
-
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const inputs = document.querySelectorAll('.score-input');
-    inputs.forEach(input => {
-        input.addEventListener('input', function() {
-            const max = parseFloat(this.getAttribute('data-max'));
-            const val = parseFloat(this.value);
-            if (val > max) {
-                this.classList.add('is-invalid');
-            } else {
-                this.classList.remove('is-invalid');
-            }
-        });
-    });
-});
-</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
