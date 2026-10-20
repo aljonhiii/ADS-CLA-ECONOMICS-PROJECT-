@@ -97,6 +97,9 @@ function is_active(string $page, string $dir = ''): string {
             <small class="meta"><?php echo date('M Y'); ?></small>
         </div>
         <div class="fw-bold small text-white mb-1">BSE-SPMS</div>
-        <div class="meta">BS Economics Program<br>College of Liberal Arts, WMSU</div>
+        <div class="meta mb-3">BS Economics Program<br>College of Liberal Arts, WMSU</div>
+        <a href="<?php echo APP_BASE; ?>/auth/logout.php" class="btn btn-sm w-100 d-flex align-items-center justify-content-center gap-2" style="background: rgba(239, 68, 68, 0.25); border: 1px solid rgba(239, 68, 68, 0.45); color: #fee2e2; text-decoration: none; border-radius: var(--radius-sm); font-weight: 600;">
+            <i class="bi bi-box-arrow-right"></i> Sign Out
+        </a>
     </div>
 </nav>

@@ -66,9 +66,9 @@ $role_badge = match($role) {
         </span>
     </a>
 
-    <div class="topbar-right ms-auto">
+    <div class="topbar-right ms-auto d-flex align-items-center gap-2">
         <div class="dropdown">
-            <button type="button" class="user-profile-pill" data-bs-toggle="dropdown" data-dropdown aria-haspopup="true" aria-expanded="false">
+            <button type="button" class="user-profile-pill" data-dropdown aria-haspopup="true" aria-expanded="false" onclick="this.parentElement.querySelector('.dropdown-menu')?.classList.toggle('show'); event.stopPropagation();">
                 <span class="user-avatar-circle"><?php echo e(strtoupper(substr($display_name, 0, 1))); ?></span>
                 <span class="user-meta d-none d-md-block">
                     <span class="name d-block"><?php echo e($display_name); ?></span>
@@ -88,6 +88,10 @@ $role_badge = match($role) {
                 </li>
             </ul>
         </div>
+        <!-- Direct Quick Sign Out Icon Button -->
+        <a href="<?php echo APP_BASE; ?>/auth/logout.php" class="icon-btn text-danger" title="Sign Out" aria-label="Sign Out">
+            <i class="bi bi-box-arrow-right fs-5"></i>
+        </a>
     </div>
 </header>
 
