@@ -199,7 +199,8 @@ $recent_classes = $stmt->fetchAll();
                     </tbody>
                 </table>
             </div>
+        </div>
     </div>
 </div>
-
+                            </div>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

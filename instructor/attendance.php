@@ -263,6 +263,18 @@ require_once __DIR__ . '/../includes/header.php';
                 <span class="fw-bold text-dark"><i class="bi bi-people me-2 text-success"></i>Student Roster</span>
                 <span class="text-muted small ms-2">(<?php echo count($students); ?> enrolled)</span>
             </div>
+               <div class="att-summary" id="attendanceTally" aria-live="polite">
+       <span class="badge bg-success">Present <strong class="ms-1" data-count="Present">0</strong></span>
+       <span class="badge bg-danger">Absent <strong class="ms-1" data-count="Absent">0</strong></span>
+       <span class="badge bg-warning">Late <strong class="ms-1" data-count="Late">0</strong></span>
+       <span class="badge bg-info">Excused <strong class="ms-1" data-count="Excused">0</strong></span>
+   </div>
+            <div class="att-summary" id="attendanceTally" aria-live="polite">
+                <span class="badge bg-success">Present <strong class="ms-1" data-count="Present">0</strong></span>
+                <span class="badge bg-danger">Absent <strong class="ms-1" data-count="Absent">0</strong></span>
+                <span class="badge bg-warning">Late <strong class="ms-1" data-count="Late">0</strong></span>
+                <span class="badge bg-info">Excused <strong class="ms-1" data-count="Excused">0</strong></span>
+            </div>
             <div>
                 <button type="button" class="btn btn-sm btn-subtle" id="markAllPresent">
                     <i class="bi bi-check-all text-success me-1"></i> Mark All Present
