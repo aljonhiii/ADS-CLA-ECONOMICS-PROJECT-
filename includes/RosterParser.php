@@ -29,9 +29,9 @@ class RosterParser {
         // 1. Try to detect a document-level Year & Section header (e.g., "BSCS 3-A")
         $documentSection = self::detectDocumentSection($rawText) ?: $defaultSection;
 
-        // 2. Extract potential candidate lines containing student numbers
         $parsedCandidates = [];
         $seenNumbers = [];
+        $autoCounter = 1;
 
         foreach ($lines as $line) {
             $trimmed = trim($line);
@@ -40,15 +40,25 @@ class RosterParser {
             // Check if line looks like header row or irrelevant metadata
             if (self::isHeaderRow($trimmed)) continue;
 
+            // 1. Try standard single-candidate line with student number
             $candidate = self::parseLine($trimmed, $documentSection);
             if ($candidate && !empty($candidate['student_number'])) {
                 $num = $candidate['student_number'];
-                // Prevent duplicate entries within the same uploaded document
-                if (isset($seenNumbers[$num])) {
-                    continue;
+                if (!isset($seenNumbers[$num])) {
+                    $seenNumbers[$num] = true;
+                    $parsedCandidates[] = $candidate;
                 }
-                $seenNumbers[$num] = true;
-                $parsedCandidates[] = $candidate;
+                continue;
+            }
+
+            // 2. Try multi-column or name-only lines (e.g., "1 Bautista, James B. 1 Cruz, Albea C.")
+            $multiCandidates = self::parseNameOnlyLine($trimmed, $documentSection, $autoCounter);
+            foreach ($multiCandidates as $mc) {
+                $num = $mc['student_number'];
+                if (!isset($seenNumbers[$num])) {
+                    $seenNumbers[$num] = true;
+                    $parsedCandidates[] = $mc;
+                }
             }
         }
 
@@ -274,9 +284,55 @@ class RosterParser {
     }
 
     /**
+     * Parse multi-column or name-only lines (e.g. DepEd format: "1 Bautista, James B. 1 Cruz, Albea C.").
+     */
+    private static function parseNameOnlyLine(string $line, string $defaultSection, int &$counter): array {
+        // Exclude document headers and administrative metadata lines
+        if (preg_match('/(republic\s*of|department\s*of|division\s*of|high\s*school|district|list\s*of\s*students|noted\s*by|school\s*head|teacher|principal|adviser|\bno\s+boys\b|\bno\s+girls\b)/i', $line)) {
+            return [];
+        }
+
+        // Must contain at least one comma to indicate "LastName, FirstName"
+        if (strpos($line, ',') === false) {
+            return [];
+        }
+
+        // Match one or more [Number] LastName, FirstName [MiddleInitial] patterns on the line
+        $pattern = '/(?:^|\s+)(?:(\d{1,2})\s+)?([A-Z][a-zA-Z\'\s\-]+,\s*[A-Z][a-zA-Z\'\s\-]+(?:\s+[A-Z]\.?)?)(?=\s+\d{1,2}\s+[A-Z]|$)/';
+        if (!preg_match_all($pattern, $line, $matches, PREG_SET_ORDER)) {
+            return [];
+        }
+
+        $results = [];
+        foreach ($matches as $m) {
+            $rawName = trim($m[2]);
+            $nameParts = self::splitName($rawName);
+            if (empty($nameParts['last_name']) && empty($nameParts['first_name'])) {
+                continue;
+            }
+
+            $generatedNum = sprintf('%s-%04d', date('Y'), $counter++);
+
+            $results[] = [
+                'student_number' => $generatedNum,
+                'last_name' => $nameParts['last_name'],
+                'first_name' => $nameParts['first_name'],
+                'middle_name' => $nameParts['middle_name'],
+                'yr_section' => $defaultSection ?: '1-A',
+                'email' => strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $nameParts['first_name']) . '.' . preg_replace('/[^a-zA-Z0-9]/', '', $nameParts['last_name']) . '@school.edu')
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
      * Inspect top text for section signatures.
      */
     private static function detectDocumentSection(string $text): ?string {
+        if (preg_match('/(?:GRADE\s*\d+\s*[-–—:]\s*[A-Za-z0-9\s]+)/i', $text, $m)) {
+            return trim($m[0]);
+        }
         if (preg_match('/(?:Section|Year\s*&\s*Section|Class|Yr\s*&\s*Sec)[:\s]+([A-Z0-9\-\s]{3,15})/i', $text, $m)) {
             $sec = trim($m[1]);
             // Filter out common noise
@@ -292,6 +348,9 @@ class RosterParser {
      */
     private static function isHeaderRow(string $line): bool {
         $lower = strtolower($line);
+        if (preg_match('/(republic\s*of|department\s*of|division\s*of|high\s*school|list\s*of\s*students|noted\s*by|school\s*head|teacher\s*-\s*in\s*-\s*charge|\bno\s+boys\b|\bno\s+girls\b)/i', $line)) {
+            return true;
+        }
         $headerWords = ['student number', 'student no', 'student id', 'full name', 'first name', 'last name', 'yr & sec', 'year & section'];
         $count = 0;
         foreach ($headerWords as $w) {

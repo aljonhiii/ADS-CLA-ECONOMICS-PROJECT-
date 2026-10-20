@@ -1,7 +1,7 @@
 """
 Tesseract OCR Microservice for Academic Management System
-Provides secure HTTPS/HTTP REST API for Optical Character Recognition
-Deployed separately on a Linux Server / Docker / Render for InfinityFree integration.
+Provides secure HTTPS/HTTP REST API for Optical Character Recognition.
+Handles images (JPG, PNG) and PDF documents with smart preprocessing and layout analysis.
 """
 
 import os
@@ -11,7 +11,7 @@ import logging
 from typing import Optional
 from fastapi import FastAPI, UploadFile, File, Header, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from PIL import Image, ImageOps, ImageEnhance
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -25,10 +25,10 @@ MAX_PAGES = int(os.getenv("MAX_PAGES", "5"))
 app = FastAPI(
     title="Academic Management System — OCR Microservice",
     description="Extracts text from images and documents using Tesseract OCR & PyPDF",
-    version="1.0.0"
+    version="1.1.0"
 )
 
-# Optional CORS middleware
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -41,9 +41,12 @@ def find_tesseract_binary() -> Optional[str]:
     """Find tesseract binary in PATH or common Windows install locations."""
     which_path = shutil.which("tesseract")
     if which_path:
+        tessdata_dir = os.path.join(os.path.dirname(which_path), "tessdata")
+        if os.path.isdir(tessdata_dir) and not os.getenv("TESSDATA_PREFIX"):
+            os.environ["TESSDATA_PREFIX"] = tessdata_dir
         return which_path
 
-    # Common Windows install paths (e.g. UB-Mannheim or custom directory)
+    # Common Windows install paths
     common_paths = [
         r"D:\tesseract\tesseract.exe",
         r"C:\Program Files\Tesseract-OCR\tesseract.exe",
@@ -60,18 +63,74 @@ def find_tesseract_binary() -> Optional[str]:
             return p
     return None
 
+def find_poppler_path() -> Optional[str]:
+    """Find poppler utility path for pdf2image on Windows."""
+    common_poppler = [
+        r"D:\poppler\bin",
+        r"D:\poppler\Library\bin",
+        r"C:\Program Files\poppler\bin",
+        r"C:\Program Files (x86)\poppler\bin",
+        r"C:\poppler\bin",
+        r"D:\xampp\poppler\bin",
+        os.path.expandvars(r"%LOCALAPPDATA%\Programs\poppler\bin"),
+    ]
+    for p in common_poppler:
+        if os.path.isdir(p):
+            return p
+    return None
+
 def is_tesseract_available() -> bool:
     """Check if the tesseract binary is installed and executable."""
     return find_tesseract_binary() is not None
 
+# Configure pytesseract at module load time
+TESS_PATH = find_tesseract_binary()
+if TESS_PATH:
+    try:
+        import pytesseract
+        pytesseract.pytesseract.tesseract_cmd = TESS_PATH
+        logger.info(f"Tesseract OCR initialized: {TESS_PATH}")
+    except ImportError:
+        logger.warning("pytesseract package not installed.")
+
+def preprocess_image(image: Image.Image) -> Image.Image:
+    """
+    Optimize uploaded photo/document for maximum OCR accuracy:
+    1. Correct smartphone orientation (EXIF transpose).
+    2. Upscale low-res images for sharp character recognition.
+    3. Enhance contrast on faint text.
+    """
+    # 1. Handle smartphone EXIF orientation
+    try:
+        image = ImageOps.exif_transpose(image)
+    except Exception:
+        pass
+
+    # 2. Convert to RGB
+    if image.mode not in ("RGB", "L"):
+        image = image.convert("RGB")
+
+    # 3. Scale up small images (below 1600px) so character strokes are clear to Tesseract
+    w, h = image.size
+    max_dim = max(w, h)
+    if max_dim < 1600:
+        scale = min(2.5, 2000.0 / max_dim)
+        if scale > 1.1:
+            new_w = int(w * scale)
+            new_h = int(h * scale)
+            image = image.resize((new_w, new_h), Image.Resampling.LANCZOS)
+
+    return image
+
 @app.get("/health")
 def health_check():
     """Health status and capability report."""
-    tesseract_ok = is_tesseract_available()
+    tess_bin = find_tesseract_binary()
     return {
         "status": "healthy",
         "service": "ams-ocr-engine",
-        "tesseract_installed": tesseract_ok,
+        "tesseract_installed": tess_bin is not None,
+        "tesseract_path": tess_bin,
         "max_file_size_mb": MAX_FILE_SIZE_MB,
         "max_pages": MAX_PAGES
     }
@@ -96,11 +155,11 @@ async def process_ocr(
     # 2. Validate filename and MIME type
     filename = file.filename or "upload.dat"
     ext = filename.split(".")[-1].lower() if "." in filename else ""
-    allowed_exts = {"jpg", "jpeg", "png", "pdf"}
+    allowed_exts = {"jpg", "jpeg", "png", "pdf", "webp", "bmp", "tiff"}
     if ext not in allowed_exts:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Unsupported file extension '{ext}'. Allowed: jpg, jpeg, png, pdf"
+            detail=f"Unsupported file extension '{ext}'. Allowed: jpg, jpeg, png, pdf, webp, bmp, tiff"
         )
 
     # 3. Read content and validate size
@@ -137,17 +196,11 @@ async def process_ocr(
         )
 
 def process_image(content: bytes, filename: str) -> dict:
-    """Run Tesseract OCR on image bytes."""
-    from PIL import Image
+    """Run Tesseract OCR on image bytes with adaptive segmentation."""
     try:
         import pytesseract
     except ImportError:
         raise RuntimeError("pytesseract is not installed on OCR server.")
-
-    image = Image.open(io.BytesIO(content))
-    # Convert RGBA to RGB for standard OCR
-    if image.mode in ("RGBA", "P"):
-        image = image.convert("RGB")
 
     tess_path = find_tesseract_binary()
     if not tess_path:
@@ -160,10 +213,27 @@ def process_image(content: bytes, filename: str) -> dict:
 
     pytesseract.pytesseract.tesseract_cmd = tess_path
 
-    # Run OCR with layout analysis (PSM 4 or 6: assume single uniform block or column of text)
-    custom_config = r'--oem 3 --psm 6'
-    extracted_text = pytesseract.image_to_string(image, config=custom_config)
-    
+    # Open and pre-process image
+    raw_image = Image.open(io.BytesIO(content))
+    processed_image = preprocess_image(raw_image)
+
+    # Adaptive layout analysis:
+    # PSM 3: Fully automatic page segmentation (detects multi-column tables like BOYS / GIRLS)
+    extracted_text = ""
+    try:
+        extracted_text = pytesseract.image_to_string(processed_image, config=r'--oem 3 --psm 3')
+    except Exception as e:
+        logger.warning(f"PSM 3 extraction error: {e}. Retrying with PSM 6...")
+
+    # Fallback to PSM 6 (single uniform block) if PSM 3 returned very little text
+    if len(extracted_text.strip()) < 25:
+        try:
+            psm6_text = pytesseract.image_to_string(processed_image, config=r'--oem 3 --psm 6')
+            if len(psm6_text.strip()) > len(extracted_text.strip()):
+                extracted_text = psm6_text
+        except Exception as e:
+            logger.warning(f"PSM 6 fallback failed: {e}")
+
     return {
         "text": extracted_text.strip(),
         "pages": 1,
@@ -216,13 +286,17 @@ def process_pdf(content: bytes, filename: str) -> dict:
         import pytesseract
         
         pytesseract.pytesseract.tesseract_cmd = tess_path
+        poppler = find_poppler_path()
         
-        images = convert_from_bytes(content, first_page=1, last_page=MAX_PAGES)
+        kwargs = {"first_page": 1, "last_page": MAX_PAGES}
+        if poppler:
+            kwargs["poppler_path"] = poppler
+
+        images = convert_from_bytes(content, **kwargs)
         ocr_texts = []
         for idx, img in enumerate(images):
-            if img.mode != "RGB":
-                img = img.convert("RGB")
-            page_ocr = pytesseract.image_to_string(img, config=r'--oem 3 --psm 6')
+            img = preprocess_image(img)
+            page_ocr = pytesseract.image_to_string(img, config=r'--oem 3 --psm 3')
             ocr_texts.append(page_ocr.strip())
         
         return {
