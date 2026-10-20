@@ -938,3 +938,339 @@ a:hover {
         transform: translateY(0);
     }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   Real-Time Auto-Update & High-Visibility Form Fields
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── Prominent Form Inputs ────────────────────────────── */
+.score-input {
+    background-color: #ffffff !important;
+    border: 2px solid #cbd5e1 !important;
+    border-radius: var(--radius-sm) !important;
+    font-weight: 700 !important;
+    font-size: 0.95rem !important;
+    color: #0f172a !important;
+    padding: 0.4rem 0.5rem !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
+}
+
+.score-input:focus {
+    border-color: var(--forest-600) !important;
+    background-color: #f8fafc !important;
+    box-shadow: 0 0 0 3px rgba(15, 63, 51, 0.18) !important;
+    outline: none !important;
+}
+
+.score-input::placeholder {
+    color: #94a3b8 !important;
+    font-weight: 500 !important;
+    font-size: 0.85rem !important;
+}
+
+/* ─── Live Auto-Save Visual States ─────────────────────── */
+.score-input.is-saving {
+    border-color: #f59e0b !important;
+    background-color: #fffbeb !important;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2) !important;
+}
+
+.score-input.is-saved {
+    border-color: #10b981 !important;
+    background-color: #f0fdf4 !important;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.25) !important;
+    animation: pulseSaved 0.6s ease;
+}
+
+.score-input.is-error {
+    border-color: #ef4444 !important;
+    background-color: #fef2f2 !important;
+    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25) !important;
+    animation: shakeError 0.35s ease-in-out;
+}
+
+@keyframes pulseSaved {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.04); }
+    100% { transform: scale(1); }
+}
+
+@keyframes shakeError {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-4px); }
+    40%, 80% { transform: translateX(4px); }
+}
+
+/* ─── Sticky Matrix Table Headers ────────────────────────── */
+.table-responsive-sticky {
+    max-height: 70vh;
+    overflow-y: auto;
+    position: relative;
+    border-radius: var(--radius-md);
+}
+
+.table-responsive-sticky thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* ─── Attendance Status Button Pills ─────────────────────── */
+.attendance-pills-group {
+    display: inline-flex;
+    gap: 4px;
+    background: #f1f5f9;
+    padding: 3px;
+    border-radius: var(--radius-pill);
+    border: 1px solid #e2e8f0;
+}
+
+.attendance-pill-btn {
+    border: none;
+    background: transparent;
+    border-radius: var(--radius-pill);
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #64748b;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.attendance-pill-btn:hover {
+    color: #1e293b;
+    background: #e2e8f0;
+}
+
+.attendance-pill-btn.active[data-status="Present"] {
+    background: #10b981;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(16, 185, 129, 0.35);
+}
+
+.attendance-pill-btn.active[data-status="Absent"] {
+    background: #ef4444;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
+}
+
+.attendance-pill-btn.active[data-status="Late"] {
+    background: #f59e0b;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(245, 158, 11, 0.35);
+}
+
+.attendance-pill-btn.active[data-status="Excused"] {
+    background: #0284c7;
+    color: #ffffff;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.35);
+}
+
+/* ─── Floating Toast Notification Center ─────────────────── */
+.ams-toast-container {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    pointer-events: none;
+}
+
+.ams-toast {
+    pointer-events: auto;
+    min-width: 280px;
+    max-width: 380px;
+    padding: 12px 18px;
+    border-radius: var(--radius-md);
+    background: #0f172a;
+    color: #ffffff;
+    font-size: 0.88rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+    animation: toastSlideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.ams-toast.success {
+    border-left: 5px solid #10b981;
+}
+
+.ams-toast.danger {
+    border-left: 5px solid #ef4444;
+}
+
+.ams-toast.warning {
+    border-left: 5px solid #f59e0b;
+}
+
+.ams-toast.info {
+    border-left: 5px solid #0284c7;
+}
+
+.ams-toast.fade-out {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+}
+
+@keyframes toastSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px) scale(0.95);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UI/UX PRO MAX — INTERACTION SYSTEM & ACCESSIBILITY
+   ═══════════════════════════════════════════════════════════ */
+
+/* ─── Active Row Focus & Spreadsheet Experience ─────────── */
+tr.is-active-row {
+    background-color: #f0fdf4 !important;
+    transition: background-color 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+tr.is-active-row td:first-child {
+    border-left: 3px solid var(--forest-600) !important;
+}
+
+tr.roster-active-row {
+    background-color: #ecfdf5 !important;
+    outline: 2px solid var(--forest-600) !important;
+    outline-offset: -2px;
+}
+
+/* ─── Micro-Interaction: Tap & Press Feedback (80-150ms) ─ */
+.btn:active, 
+.attendance-pill-btn:active,
+.dropdown-item:active,
+.nav-link:active {
+    transform: scale(0.97);
+    transition: transform 0.08s ease;
+}
+
+/* ─── WCAG 2.2 AA Focus Indicators ─────────────────────── */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+.form-check-input:focus-visible {
+    outline: 2px solid var(--forest-600) !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 4px rgba(15, 63, 51, 0.2) !important;
+}
+
+/* ─── Keyboard Shortcut Badges (KBD) ─────────────────────── */
+.ams-kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #334155;
+    background-color: #f8fafc;
+    border: 1px solid #cbd5e1;
+    border-bottom: 2px solid #94a3b8;
+    border-radius: 4px;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+    font-family: inherit;
+    line-height: 1;
+}
+
+/* ─── Keyboard Helper Bar ───────────────────────────────── */
+.ams-shortcut-helper {
+    background: #f8fafc;
+    border: 1px dashed #cbd5e1;
+    border-radius: var(--radius-sm);
+    padding: 8px 16px;
+    font-size: 0.8rem;
+    color: #64748b;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 14px;
+}
+
+/* ─── Segmented Weight Distribution Progress Bar ────────── */
+.weight-progress-segmented {
+    height: 16px;
+    border-radius: var(--radius-pill);
+    overflow: hidden;
+    display: flex;
+    background: #e2e8f0;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.08);
+    position: relative;
+}
+
+.weight-segment {
+    height: 100%;
+    transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    position: relative;
+    cursor: default;
+}
+
+.weight-segment:hover::after {
+    content: attr(data-title);
+    position: absolute;
+    bottom: 120%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #0f172a;
+    color: #ffffff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    white-space: nowrap;
+    z-index: 20;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+}
+
+/* ─── Quick Preset Card Buttons ─────────────────────────── */
+.preset-badge-btn {
+    border: 1px solid #cbd5e1;
+    background: #ffffff;
+    color: #1e293b;
+    border-radius: var(--radius-pill);
+    padding: 5px 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.preset-badge-btn:hover {
+    background: #f1f5f9;
+    border-color: var(--forest-600);
+    color: var(--forest-700);
+}
+
+/* ─── Reduced Motion Compliance ─────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+

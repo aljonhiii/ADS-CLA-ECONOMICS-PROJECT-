@@ -27,12 +27,15 @@ $RECYCLE.BIN/
 *.cache
 *.sql.gz
 *.sql.zip
+__pycache__/
+*.pyc
 
 # ─── Dependencies ─────────────────────────────────────
 /vendor/
 /node_modules/
 
 # ─── Local Reference & Scratch Files ─────────────────
+.agents/
 /*.png
 *.docx
 design_skills.md

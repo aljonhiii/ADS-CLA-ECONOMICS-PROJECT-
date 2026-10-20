@@ -256,46 +256,116 @@ require_once __DIR__ . '/../includes/header.php';
     </div>
 </div>
 
+<?php 
+// Calculate initial session KPI metrics
+$pres_cnt = 0; $abs_cnt = 0; $late_cnt = 0; $exc_cnt = 0;
+foreach ($students as $stu) {
+    $st = $stu['current_status'] ?? '';
+    if ($st === 'Present') $pres_cnt++;
+    elseif ($st === 'Absent') $abs_cnt++;
+    elseif ($st === 'Late') $late_cnt++;
+    elseif ($st === 'Excused') $exc_cnt++;
+}
+$tot_stu = count($students);
+$att_rate = $tot_stu > 0 ? round((($pres_cnt + $late_cnt) / $tot_stu) * 100, 1) : 0;
+?>
+
 <?php if ($class_id > 0 && $session_id > 0 && !empty($students)): ?>
-    <div class="card">
-        <div class="card-header d-flex justify-content-between align-items-center">
-            <div>
-                <span class="fw-bold text-dark"><i class="bi bi-people me-2 text-success"></i>Student Roster</span>
-                <span class="text-muted small ms-2">(<?php echo count($students); ?> enrolled)</span>
+    <!-- Live Session Attendance KPI Cards -->
+    <div class="row g-3 mb-4">
+        <div class="col-6 col-md-2">
+            <div class="card border-0 shadow-sm text-center p-3 h-100">
+                <span class="text-muted small fw-semibold text-uppercase">Present</span>
+                <h3 class="fw-bold mt-1 mb-0 text-success" id="metricPresent"><?php echo $pres_cnt; ?></h3>
             </div>
-            <div>
-                <button type="button" class="btn btn-sm btn-subtle" id="markAllPresent">
-                    <i class="bi bi-check-all text-success me-1"></i> Mark All Present
+        </div>
+        <div class="col-6 col-md-2">
+            <div class="card border-0 shadow-sm text-center p-3 h-100">
+                <span class="text-muted small fw-semibold text-uppercase">Absent</span>
+                <h3 class="fw-bold mt-1 mb-0 text-danger" id="metricAbsent"><?php echo $abs_cnt; ?></h3>
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <div class="card border-0 shadow-sm text-center p-3 h-100">
+                <span class="text-muted small fw-semibold text-uppercase">Late</span>
+                <h3 class="fw-bold mt-1 mb-0 text-warning" id="metricLate"><?php echo $late_cnt; ?></h3>
+            </div>
+        </div>
+        <div class="col-6 col-md-2">
+            <div class="card border-0 shadow-sm text-center p-3 h-100">
+                <span class="text-muted small fw-semibold text-uppercase">Excused</span>
+                <h3 class="fw-bold mt-1 mb-0 text-info" id="metricExcused"><?php echo $exc_cnt; ?></h3>
+            </div>
+        </div>
+        <div class="col-12 col-md-4">
+            <div class="card border-0 shadow-sm p-3 h-100 bg-dark text-white">
+                <div>
+                    <span class="text-white-50 small fw-semibold text-uppercase">Session Attendance Rate</span>
+                    <h3 class="fw-bold mt-1 mb-0 text-white" id="metricRate"><?php echo $att_rate; ?>%</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rapid Roll-Call Shortcut Helper Bar (UI/UX Pro Max) -->
+    <div class="ams-shortcut-helper mb-3">
+        <div class="d-flex align-items-center gap-1 fw-bold text-dark">
+            <i class="bi bi-lightning-charge text-success me-1"></i> Rapid Roll-Call Mode:
+        </div>
+        <div>
+            <span class="ams-kbd">P</span> or <span class="ams-kbd">1</span> Present
+        </div>
+        <div>
+            <span class="ams-kbd">A</span> or <span class="ams-kbd">2</span> Absent
+        </div>
+        <div>
+            <span class="ams-kbd">L</span> or <span class="ams-kbd">3</span> Late
+        </div>
+        <div>
+            <span class="ams-kbd">E</span> or <span class="ams-kbd">4</span> Excused
+        </div>
+        <div>
+            <span class="ams-kbd">↓</span> <span class="ams-kbd">↑</span> Navigate Student
+        </div>
+    </div>
+
+    <!-- Student Roster Card -->
+    <div class="card shadow-sm border-0 mb-4">
+        <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <span class="fw-bold text-dark fs-6"><i class="bi bi-people me-2 text-success"></i>Student Roster</span>
+                <span class="badge bg-secondary" data-count-for="attendanceRosterTable"><?php echo count($students); ?> enrolled</span>
+            </div>
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <div class="input-group input-group-sm" style="max-width: 220px;">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control form-control-sm border-start-0" placeholder="Filter student..." data-table-search="attendanceRosterTable">
+                </div>
+                <button type="button" class="btn btn-sm btn-subtle fw-semibold px-3" id="markAllPresent" data-session-id="<?php echo $session_id; ?>">
+                    <i class="bi bi-check-all text-success me-1 fs-6"></i> Mark All Present
                 </button>
             </div>
         </div>
         <div class="card-body p-0">
             <form method="POST">
                 <?php echo csrf_field(); ?>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead>
+                <div class="table-responsive table-responsive-sticky">
+                    <table class="table table-hover align-middle mb-0" id="attendanceRosterTable">
+                        <thead class="table-light">
                             <tr>
                                 <th style="width: 50px;">#</th>
-                                <th>Student Number</th>
-                                <th>Student Full Name</th>
-                                <th class="text-center" style="width: 110px;">
-                                    <span class="text-success"><i class="bi bi-check-circle me-1"></i>Present</span>
-                                </th>
-                                <th class="text-center" style="width: 110px;">
-                                    <span class="text-danger"><i class="bi bi-x-circle me-1"></i>Absent</span>
-                                </th>
-                                <th class="text-center" style="width: 110px;">
-                                    <span class="text-warning"><i class="bi bi-clock me-1"></i>Late</span>
-                                </th>
-                                <th class="text-center" style="width: 110px;">
-                                    <span class="text-info"><i class="bi bi-info-circle me-1"></i>Excused</span>
-                                </th>
+                                <th style="min-width: 140px;">Student Number</th>
+                                <th style="min-width: 220px;">Student Full Name</th>
+                                <th class="text-center" style="min-width: 320px;">Attendance Status (Click or Press Key)</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($students as $i => $stu): ?>
-                                <tr>
+                            <?php foreach ($students as $i => $stu): 
+                                $sc_id = (int)$stu['student_class_id'];
+                                $cur_st = $stu['current_status'] ?? '';
+                                $s_name = $stu['last_name'] . ', ' . $stu['first_name'];
+                            ?>
+                                <tr data-attendance-row="true">
                                     <td class="text-muted small"><?php echo $i + 1; ?></td>
                                     <td>
                                         <span class="font-monospace fw-bold text-dark"><?php echo e($stu['student_number']); ?></span>
@@ -305,23 +375,47 @@ require_once __DIR__ . '/../includes/header.php';
                                             <?php echo e($stu['last_name'] . ', ' . $stu['first_name'] . ($stu['middle_name'] ? ' ' . $stu['middle_name'] : '')); ?>
                                         </div>
                                     </td>
-                                    <?php foreach (['Present', 'Absent', 'Late', 'Excused'] as $status): ?>
-                                        <td class="text-center">
-                                            <input type="radio"
-                                                   class="form-check-input"
-                                                   name="status[<?php echo $stu['student_class_id']; ?>]"
-                                                   value="<?php echo $status; ?>"
-                                                   <?php echo ($stu['current_status'] ?? '') === $status ? 'checked' : ''; ?>
-                                                   required>
-                                        </td>
-                                    <?php endforeach; ?>
+                                    <td class="text-center py-2">
+                                        <!-- Interactive Real-time Pills -->
+                                        <div class="attendance-pills-group" data-sc-id="<?php echo $sc_id; ?>">
+                                            <?php foreach (['Present', 'Absent', 'Late', 'Excused'] as $status): 
+                                                $is_active = ($cur_st === $status);
+                                                $icon = match($status) {
+                                                    'Present' => 'bi-check-lg',
+                                                    'Absent'  => 'bi-x-lg',
+                                                    'Late'    => 'bi-clock',
+                                                    'Excused' => 'bi-info-circle',
+                                                };
+                                            ?>
+                                                <button type="button" 
+                                                        class="attendance-pill-btn <?php echo $is_active ? 'active' : ''; ?>"
+                                                        data-sc-id="<?php echo $sc_id; ?>"
+                                                        data-session-id="<?php echo $session_id; ?>"
+                                                        data-status="<?php echo $status; ?>"
+                                                        data-student-name="<?php echo e($s_name); ?>"
+                                                        title="Mark <?php echo $status; ?>">
+                                                    <i class="bi <?php echo $icon; ?>"></i> <?php echo $status; ?>
+                                                </button>
+                                            <?php endforeach; ?>
+                                        </div>
+
+                                        <!-- Hidden Radio inputs for form submission -->
+                                        <div style="display:none;">
+                                            <?php foreach (['Present', 'Absent', 'Late', 'Excused'] as $status): ?>
+                                                <input type="radio"
+                                                       name="status[<?php echo $sc_id; ?>]"
+                                                       value="<?php echo $status; ?>"
+                                                       <?php echo ($cur_st === $status) ? 'checked' : ''; ?>>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
-                <div class="p-3 border-top bg-light d-flex justify-content-between align-items-center">
-                    <small class="text-muted">Ensure all radio selections are reviewed before committing.</small>
+                <div class="p-3 border-top bg-light d-flex flex-wrap justify-content-between align-items-center gap-2">
+                    <small class="text-muted"><i class="bi bi-info-circle me-1"></i> Make your selections above using the status buttons or keyboard shortcuts, then click <strong>Save Attendance</strong>.</small>
                     <button type="submit" class="btn btn-forest px-4">
                         <i class="bi bi-check-lg me-1"></i> Save Attendance
                     </button>

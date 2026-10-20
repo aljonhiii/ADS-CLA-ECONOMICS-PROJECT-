@@ -109,6 +109,7 @@ $classes = $stmt->fetchAll();
                             </td>
                             <td class="text-center">
                                 <div class="btn-group btn-group-sm">
+                                    <a href="students.php?class_id=<?php echo $cls['class_id']; ?>" class="btn btn-subtle" title="Roster & OCR Enrollment"><i class="bi bi-person-lines-fill text-primary"></i></a>
                                     <a href="sessions.php?class_id=<?php echo $cls['class_id']; ?>" class="btn btn-subtle" title="Sessions"><i class="bi bi-calendar-event text-dark"></i></a>
                                     <a href="attendance.php?class_id=<?php echo $cls['class_id']; ?>" class="btn btn-subtle" title="Attendance"><i class="bi bi-calendar-check text-success"></i></a>
                                     <a href="grading-components.php?class_id=<?php echo $cls['class_id']; ?>" class="btn btn-subtle" title="Weights"><i class="bi bi-sliders text-dark"></i></a>

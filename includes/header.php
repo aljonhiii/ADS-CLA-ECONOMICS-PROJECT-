@@ -102,9 +102,9 @@ $display_name = $user['name'] ?? 'Guest';
             // Display flash messages
             $flash = get_flash();
             if ($flash): ?>
-                <div class="alert alert-<?php echo e($flash['type']); ?> alert-dismissible fade show border-0 shadow-sm mb-4 rounded-3 d-flex align-items-center" role="alert">
-                    <i class="bi bi-info-circle-fill me-2 fs-5"></i>
-                    <div><?php echo e($flash['message']); ?></div>
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                <div class="alert alert-<?php echo e($flash['type']); ?> alert-dismissible fade show border-0 shadow-sm mb-3 py-2 px-3 rounded-3 d-flex align-items-center" role="alert" data-auto-dismiss="true">
+                    <i class="bi bi-info-circle-fill me-2 fs-5 flex-shrink-0"></i>
+                    <div class="flex-grow-1 small"><?php echo e($flash['message']); ?></div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="font-size: 0.75rem;"></button>
                 </div>
             <?php endif; ?>

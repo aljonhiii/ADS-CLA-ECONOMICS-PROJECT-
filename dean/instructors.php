@@ -77,7 +77,7 @@ $instructors = $stmt->fetchAll();
                     <span class="input-group-text bg-light border-end-0 text-muted">
                         <i class="bi bi-search"></i>
                     </span>
-                    <input type="text" name="search" class="form-control border-start-0 ps-0" placeholder="Search by name, username, or email..." value="<?php echo e($search); ?>">
+                    <input type="text" name="search" data-table-search="deanInstructorsTable" class="form-control border-start-0 ps-0" placeholder="Search by name, username, or email (live search)..." value="<?php echo e($search); ?>">
                 </div>
             </div>
             <div class="col-md-4">
@@ -104,8 +104,8 @@ $instructors = $stmt->fetchAll();
 
 <!-- Faculty Table (Clean Light Data Table) -->
 <div class="card">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+    <div class="table-responsive table-responsive-sticky" style="max-height: 700px;">
+        <table class="table table-hover align-middle mb-0" id="deanInstructorsTable">
             <thead>
                 <tr>
                     <th style="width: 50px;">#</th>

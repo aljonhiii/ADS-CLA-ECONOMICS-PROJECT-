@@ -274,26 +274,56 @@ require_once __DIR__ . '/../includes/header.php';
             <p class="text-muted mb-0">There are no students enrolled in this class yet.</p>
         </div>
     <?php else: ?>
+        <!-- Keyboard Shortcut Helper Bar (UI/UX Pro Max) -->
+        <div class="ams-shortcut-helper mb-3">
+            <div class="d-flex align-items-center gap-1 fw-bold text-dark">
+                <i class="bi bi-keyboard me-1 text-primary"></i> Spreadsheet Shortcuts:
+            </div>
+            <div>
+                <span class="ams-kbd">↑</span> <span class="ams-kbd">↓</span> or <span class="ams-kbd">Enter</span> Next/Prev Student
+            </div>
+            <div>
+                <span class="ams-kbd">←</span> <span class="ams-kbd">→</span> Next/Prev Component
+            </div>
+            <div>
+                <span class="ams-kbd">Esc</span> Revert Edit
+            </div>
+            <div>
+                <span class="ams-kbd">Ctrl+S</span> Sync & Save
+            </div>
+            <div>
+                <span class="ams-kbd">/</span> Jump to Search
+            </div>
+        </div>
+
         <!-- Grades Matrix Form -->
         <form method="POST" action="grades.php?class_id=<?php echo $class_id; ?>" id="gradesMatrixForm">
             <?php echo csrf_field(); ?>
             <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
-                    <div>
-                        <h6 class="mb-0 fw-bold" style="color: var(--neutral-900);">
-                            <i class="bi bi-table me-2 text-primary"></i>Grade Entry Matrix
-                        </h6>
-                        <small class="text-muted">
-                            <?php echo count($students); ?> Enrolled Students &bull; <?php echo count($components); ?> Components
-                        </small>
+                <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-3">
+                    <div class="d-flex align-items-center gap-3">
+                        <div>
+                            <h6 class="mb-0 fw-bold" style="color: var(--neutral-900);">
+                                <i class="bi bi-table me-2 text-primary"></i>Grade Entry Matrix
+                            </h6>
+                            <small class="text-muted">
+                                <span data-count-for="gradesMatrixTable"><?php echo count($students); ?> Enrolled Students</span> &bull; <?php echo count($components); ?> Components
+                            </small>
+                        </div>
                     </div>
-                    <button type="submit" class="btn btn-forest">
-                        <i class="bi bi-check-lg me-1"></i> Save All Grades
-                    </button>
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <div class="input-group input-group-sm" style="max-width: 240px;">
+                            <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control form-control-sm border-start-0" placeholder="Filter student..." data-table-search="gradesMatrixTable">
+                        </div>
+                        <button type="submit" class="btn btn-forest btn-sm">
+                            <i class="bi bi-check-lg me-1"></i> Save All Grades
+                        </button>
+                    </div>
                 </div>
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead>
+                <div class="table-responsive table-responsive-sticky">
+                    <table class="table table-hover align-middle mb-0" id="gradesMatrixTable">
+                        <thead class="table-light">
                             <tr>
                                 <th style="width: 50px;">#</th>
                                 <th style="min-width: 140px;">Student Number</th>
@@ -306,12 +336,14 @@ require_once __DIR__ . '/../includes/header.php';
                                         <small class="text-muted d-block mt-1">Max: <?php echo number_format($comp['maximum_score'], 1); ?></small>
                                     </th>
                                 <?php endforeach; ?>
-                                <th class="text-center" style="min-width: 130px;">Final Status</th>
+                                <th class="text-center" style="min-width: 140px;">Final Status</th>
                             </tr>
                         </thead>
                         <tbody>
-                            <?php foreach ($students as $idx => $st): ?>
-                                <tr>
+                            <?php foreach ($students as $idx => $st): 
+                                $student_full_name = $st['last_name'] . ', ' . $st['first_name'];
+                            ?>
+                                <tr data-sc-id="<?php echo $st['student_class_id']; ?>" data-threshold="<?php echo (float)$current_class['passing_threshold']; ?>">
                                     <td class="text-muted"><?php echo $idx + 1; ?></td>
                                     <td>
                                         <span class="badge bg-secondary font-monospace">
@@ -333,6 +365,7 @@ require_once __DIR__ . '/../includes/header.php';
                                         $c_id = $comp['component_id'];
                                         $val = isset($existing_grades[$sc_id][$c_id]) ? $existing_grades[$sc_id][$c_id] : '';
                                         $max = (float)$comp['maximum_score'];
+                                        $wt  = (float)$comp['weight_percentage'];
                                     ?>
                                         <td class="text-center p-2">
                                             <input type="number" 
@@ -343,7 +376,11 @@ require_once __DIR__ . '/../includes/header.php';
                                                    max="<?php echo $max; ?>" 
                                                    value="<?php echo ($val !== '') ? e($val) : ''; ?>"
                                                    placeholder="0 - <?php echo $max; ?>"
-                                                   data-max="<?php echo $max; ?>">
+                                                   data-max="<?php echo $max; ?>"
+                                                   data-weight="<?php echo $wt; ?>"
+                                                   data-sc-id="<?php echo $sc_id; ?>"
+                                                   data-comp-id="<?php echo $c_id; ?>"
+                                                   data-student-name="<?php echo e($student_full_name); ?>">
                                         </td>
                                     <?php endforeach; ?>
                                     <td class="text-center">
@@ -351,11 +388,11 @@ require_once __DIR__ . '/../includes/header.php';
                                             <?php 
                                                 $badge_cls = $st['final_status'] === 'Pass' ? 'bg-success' : ($st['final_status'] === 'Fail' ? 'bg-danger' : 'bg-warning');
                                             ?>
-                                            <span class="badge <?php echo $badge_cls; ?>">
+                                            <span class="badge <?php echo $badge_cls; ?> student-status-badge" data-sc-id="<?php echo $st['student_class_id']; ?>">
                                                 <?php echo e($st['final_status']); ?> (<?php echo number_format($st['final_grade'], 1); ?>%)
                                             </span>
                                         <?php else: ?>
-                                            <span class="badge bg-secondary">Unfinalized</span>
+                                            <span class="badge bg-secondary student-status-badge" data-sc-id="<?php echo $st['student_class_id']; ?>">Unfinalized</span>
                                         <?php endif; ?>
                                     </td>
                                 </tr>

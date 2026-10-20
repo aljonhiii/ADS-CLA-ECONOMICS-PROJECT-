@@ -197,8 +197,14 @@ $att_rate = $total > 0 ? round((($present + $late) / $total) * 100, 1) : 0;
                     <option value="Excused" <?php echo ($status_filter === 'Excused') ? 'selected' : ''; ?>>Excused</option>
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <input type="date" name="date" class="form-control" value="<?php echo e($date_filter); ?>">
+            </div>
+            <div class="col-md-3">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control border-start-0" placeholder="Live filter student/subject..." data-table-search="deanAttendanceTable">
+                </div>
             </div>
             <div class="col-md-2 d-flex gap-2">
                 <button type="submit" class="btn btn-forest flex-grow-1">
@@ -213,9 +219,9 @@ $att_rate = $total > 0 ? round((($present + $late) / $total) * 100, 1) : 0;
 </div>
 
 <!-- Records Table (Clean Light Data Table) -->
-<div class="card">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive table-responsive-sticky">
+        <table class="table table-hover align-middle mb-0" id="deanAttendanceTable">
             <thead>
                 <tr>
                     <th style="width: 50px;">#</th>

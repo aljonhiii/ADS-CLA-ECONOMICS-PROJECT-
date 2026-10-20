@@ -134,7 +134,7 @@ $pass_rate = $total_enrolled > 0 ? round(($pass_count / $total_enrolled) * 100, 
             </div>
             <div class="col-md-4">
                 <div class="input-group">
-                    <input type="text" name="search" class="form-control" placeholder="Search student name / #..." value="<?php echo e($search); ?>">
+                    <input type="text" name="search" class="form-control" placeholder="Search student name / #..." value="<?php echo e($search); ?>" data-table-search="deanGradesTable">
                     <button type="submit" class="btn btn-forest"><i class="bi bi-search"></i></button>
                     <?php if ($status_filter !== '' || $search !== ''): ?>
                         <a href="grades.php?class_id=<?php echo $class_id; ?>" class="btn btn-subtle">Reset</a>
@@ -209,9 +209,9 @@ $pass_rate = $total_enrolled > 0 ? round(($pass_count / $total_enrolled) * 100, 
 </div>
 
 <!-- Gradebook Table (Clean Light Data Table) -->
-<div class="card">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive table-responsive-sticky">
+        <table class="table table-hover align-middle mb-0" id="deanGradesTable">
             <thead>
                 <tr>
                     <th style="width: 50px;">#</th>

@@ -340,17 +340,23 @@ require_once __DIR__ . '/../includes/header.php';
                 </h6>
                 <small class="text-muted">Formula: &Sigma; (Score &divide; Max Score &times; Weight %)</small>
             </div>
-            <?php if ($is_weight_valid && !empty($students)): ?>
-                <form method="POST" action="finalize-grades.php?class_id=<?php echo $class_id; ?>" onsubmit="return confirm('Are you sure you want to finalize and lock grades for this class?');">
-                    <?php echo csrf_field(); ?>
-                    <button type="submit" class="btn btn-forest px-4">
-                        <i class="bi bi-lock me-1"></i> Finalize & Lock Grades
-                    </button>
-                </form>
-            <?php endif; ?>
+            <div class="d-flex align-items-center gap-2">
+                <div class="input-group input-group-sm" style="max-width: 250px;">
+                    <span class="input-group-text bg-light text-muted border-end-0"><i class="bi bi-search"></i></span>
+                    <input type="text" data-table-search="finalizeGradesTable" class="form-control border-start-0" placeholder="Filter student...">
+                </div>
+                <?php if ($is_weight_valid && !empty($students)): ?>
+                    <form method="POST" action="finalize-grades.php?class_id=<?php echo $class_id; ?>" onsubmit="return confirm('Are you sure you want to finalize and lock grades for this class?');">
+                        <?php echo csrf_field(); ?>
+                        <button type="submit" class="btn btn-forest px-3">
+                            <i class="bi bi-lock me-1"></i> Finalize & Lock
+                        </button>
+                    </form>
+                <?php endif; ?>
+            </div>
         </div>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+        <div class="table-responsive table-responsive-sticky" style="max-height: 700px;">
+            <table class="table table-hover align-middle mb-0" id="finalizeGradesTable">
                 <thead>
                     <tr>
                         <th style="width: 50px;">#</th>

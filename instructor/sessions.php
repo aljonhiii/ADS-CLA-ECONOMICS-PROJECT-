@@ -123,24 +123,17 @@ require_once __DIR__ . '/../includes/header.php';
 <!-- Class Selector Card -->
 <div class="card mb-4">
     <div class="card-body p-3">
-        <form method="GET" class="row g-2 align-items-center">
-            <div class="col-md-9">
-                <label class="form-label small text-muted mb-1">Select Course Section</label>
-                <select name="class_id" class="form-select" onchange="this.form.submit()">
-                    <option value="">— Choose a class —</option>
-                    <?php foreach ($my_classes as $cls): ?>
-                        <option value="<?php echo $cls['class_id']; ?>"
-                                <?php echo $cls['class_id'] == $class_id ? 'selected' : ''; ?>>
-                            <?php echo e($cls['subject_code'] . ' — ' . $cls['subject_name'] . ' (' . $cls['school_year'] . ' ' . $cls['school_semester'] . ')'); ?>
-                        </option>
-                    <?php endforeach; ?>
-                </select>
-            </div>
-            <div class="col-md-3 d-flex align-items-end">
-                <button type="submit" class="btn btn-subtle w-100">
-                    <i class="bi bi-arrow-repeat me-1"></i> Switch Class
-                </button>
-            </div>
+        <form method="GET">
+            <label class="form-label small text-muted mb-1">Select Course Section</label>
+            <select name="class_id" class="form-select" onchange="this.form.submit()">
+                <option value="">— Choose a class —</option>
+                <?php foreach ($my_classes as $cls): ?>
+                    <option value="<?php echo $cls['class_id']; ?>"
+                            <?php echo $cls['class_id'] == $class_id ? 'selected' : ''; ?>>
+                        <?php echo e($cls['subject_code'] . ' — ' . $cls['subject_name'] . ' (' . $cls['school_year'] . ' ' . $cls['school_semester'] . ')'); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
         </form>
     </div>
 </div>
@@ -183,7 +176,7 @@ require_once __DIR__ . '/../includes/header.php';
             <span><i class="bi bi-list-ul me-2 text-success"></i>Session History & Attendance</span>
             <span class="badge bg-secondary"><?php echo count($sessions); ?> total sessions</span>
         </div>
-        <div class="table-responsive">
+        <div class="table-responsive table-responsive-sticky" style="max-height: 550px;">
             <table class="table table-hover align-middle mb-0">
                 <thead>
                     <tr>

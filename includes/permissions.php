@@ -137,10 +137,32 @@ function csrf_field(): string {
  * Terminates with 403 on failure.
  */
 function verify_csrf(): void {
-    $token = $_POST['csrf_token'] ?? '';
-    if (!hash_equals(csrf_token(), $token)) {
+    $token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+    
+    // Check php://input if JSON body
+    if (empty($token)) {
+        $raw = file_get_contents('php://input');
+        if (!empty($raw)) {
+            $json = json_decode($raw, true);
+            if (is_array($json) && isset($json['csrf_token'])) {
+                $token = $json['csrf_token'];
+            }
+        }
+    }
+
+    if (!hash_equals(csrf_token(), (string)$token)) {
         http_response_code(403);
-        die('CSRF token validation failed. Please refresh the page and try again.');
+        $is_ajax = (!empty($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+                || (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+                || !empty($_SERVER['HTTP_X_CSRF_TOKEN']);
+        
+        if ($is_ajax) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['success' => false, 'message' => 'CSRF token validation failed.']);
+        } else {
+            die('CSRF token validation failed. Please refresh the page and try again.');
+        }
+        exit;
     }
 }
 

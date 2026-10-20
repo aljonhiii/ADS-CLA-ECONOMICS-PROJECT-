@@ -178,6 +178,47 @@ require_once __DIR__ . '/../includes/header.php';
         </div>
     </div>
 
+    <!-- Segmented Weight Visualizer & Quick Presets (UI/UX Pro Max) -->
+    <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span class="small fw-bold text-dark text-uppercase"><i class="bi bi-pie-chart-fill me-1 text-primary"></i>100% Weight Distribution Visualizer</span>
+                <span class="small text-muted fw-bold"><?php echo number_format($total_weight, 1); ?>% / 100.0%</span>
+            </div>
+            <div class="weight-progress-segmented mb-3">
+                <?php 
+                $colors = ['#10b981', '#3b82f6', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4'];
+                $color_idx = 0;
+                foreach ($components as $c): 
+                    $w = (float)$c['weight_percentage'];
+                    $col = $colors[$color_idx % count($colors)];
+                    $color_idx++;
+                ?>
+                    <div class="weight-segment" style="width: <?php echo min(100, $w); ?>%; background: <?php echo $col; ?>;" data-title="<?php echo e($c['component_name']); ?>: <?php echo number_format($w, 1); ?>%"></div>
+                <?php endforeach; ?>
+                <?php if ($total_weight < 100): ?>
+                    <div class="weight-segment" style="width: <?php echo (100 - $total_weight); ?>%; background: #e2e8f0; border-left: 1px dashed #94a3b8;" data-title="Remaining needed: <?php echo number_format(100 - $total_weight, 1); ?>%"></div>
+                <?php endif; ?>
+            </div>
+            <!-- Quick Preset Template Badges -->
+            <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="small text-muted fw-semibold me-1"><i class="bi bi-lightning-charge me-1"></i>Quick Presets:</span>
+                <button type="button" class="preset-badge-btn" data-preset-weights="true" data-name="Quizzes" data-weight="30" data-max="100">
+                    <i class="bi bi-plus-circle text-primary"></i> Quizzes (30%)
+                </button>
+                <button type="button" class="preset-badge-btn" data-preset-weights="true" data-name="Midterm Exam" data-weight="30" data-max="100">
+                    <i class="bi bi-plus-circle text-primary"></i> Midterm (30%)
+                </button>
+                <button type="button" class="preset-badge-btn" data-preset-weights="true" data-name="Final Exam" data-weight="40" data-max="100">
+                    <i class="bi bi-plus-circle text-primary"></i> Final Exam (40%)
+                </button>
+                <button type="button" class="preset-badge-btn" data-preset-weights="true" data-name="Attendance" data-weight="10" data-max="100">
+                    <i class="bi bi-plus-circle text-primary"></i> Attendance (10%)
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Add Component Form -->
     <div class="card mb-4 border-0 shadow-sm">
         <div class="card-header bg-white py-3 border-bottom d-flex align-items-center">

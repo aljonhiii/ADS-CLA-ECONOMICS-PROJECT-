@@ -67,6 +67,9 @@ function is_active(string $page, string $dir = ''): string {
             <a class="nav-link <?php echo is_active('classes.php', 'instructor'); ?>" href="<?php echo APP_BASE; ?>/instructor/classes.php">
                 <i class="bi bi-building"></i><span>My Classes</span>
             </a>
+            <a class="nav-link <?php echo is_active('students.php', 'instructor'); ?>" href="<?php echo APP_BASE; ?>/instructor/students.php">
+                <i class="bi bi-person-lines-fill"></i><span>Rosters & OCR</span>
+            </a>
             <a class="nav-link <?php echo is_active('sessions.php', 'instructor'); ?>" href="<?php echo APP_BASE; ?>/instructor/sessions.php">
                 <i class="bi bi-calendar-event"></i><span>Class Sessions</span>
             </a>

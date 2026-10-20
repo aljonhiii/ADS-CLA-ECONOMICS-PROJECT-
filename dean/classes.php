@@ -71,6 +71,14 @@ $classes = $stmt->fetchAll();
     <div class="card-body p-3">
         <form method="GET" action="classes.php" class="row g-2 align-items-center">
             <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0 text-muted">
+                        <i class="bi bi-search"></i>
+                    </span>
+                    <input type="text" data-table-search="deanClassesTable" class="form-control border-start-0 ps-0" placeholder="Filter by code, subject, instructor...">
+                </div>
+            </div>
+            <div class="col-md-3">
                 <select name="school_year" class="form-select">
                     <option value="">All Academic Years</option>
                     <?php foreach ($available_years as $yr): ?>
@@ -80,7 +88,7 @@ $classes = $stmt->fetchAll();
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <select name="school_semester" class="form-select">
                     <option value="">All Semesters</option>
                     <option value="1st" <?php echo ($sem_filter === '1st') ? 'selected' : ''; ?>>1st Semester</option>
@@ -88,7 +96,7 @@ $classes = $stmt->fetchAll();
                     <option value="Summer" <?php echo ($sem_filter === 'Summer') ? 'selected' : ''; ?>>Summer</option>
                 </select>
             </div>
-            <div class="col-md-4 d-flex gap-2">
+            <div class="col-md-2 d-flex gap-2">
                 <button type="submit" class="btn btn-forest flex-grow-1">
                     <i class="bi bi-funnel me-1"></i> Filter
                 </button>
@@ -102,8 +110,8 @@ $classes = $stmt->fetchAll();
 
 <!-- Class Table (Clean Light Data Table) -->
 <div class="card">
-    <div class="table-responsive">
-        <table class="table table-hover align-middle mb-0">
+    <div class="table-responsive table-responsive-sticky" style="max-height: 700px;">
+        <table class="table table-hover align-middle mb-0" id="deanClassesTable">
             <thead>
                 <tr>
                     <th style="width: 50px;">#</th>

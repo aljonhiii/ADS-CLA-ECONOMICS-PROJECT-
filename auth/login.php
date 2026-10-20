@@ -71,9 +71,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 <!-- Error Message -->
                 <?php if ($error): ?>
-                    <div class="alert alert-danger d-flex align-items-center py-2 px-3 mb-3 rounded-3 border-0 shadow-xs" role="alert">
+                    <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center py-2 px-3 mb-3 rounded-3 border-0 shadow-xs" role="alert">
                         <i class="bi bi-exclamation-circle-fill me-2 fs-6"></i>
-                        <span class="small"><?php echo htmlspecialchars($error); ?></span>
+                        <span class="small flex-grow-1"><?php echo htmlspecialchars($error); ?></span>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="font-size: 0.75rem; padding: 0.75rem;"></button>
                     </div>
                 <?php endif; ?>
 
@@ -204,5 +205,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+<script src="<?php echo APP_BASE; ?>/assets/js/script.js"></script>
 </body>
 </html>
