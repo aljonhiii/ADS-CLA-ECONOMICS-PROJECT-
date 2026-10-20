@@ -16,6 +16,17 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
+:: Auto-detect Tesseract in D:\tesseract or Program Files
+if exist "D:\tesseract\tesseract.exe" (
+    echo [*] Found Tesseract in D:\tesseract
+    set "PATH=D:\tesseract;%PATH%"
+    set "TESSDATA_PREFIX=D:\tesseract\tessdata"
+) else if exist "C:\Program Files\Tesseract-OCR\tesseract.exe" (
+    echo [*] Found Tesseract in C:\Program Files\Tesseract-OCR
+    set "PATH=C:\Program Files\Tesseract-OCR;%PATH%"
+    set "TESSDATA_PREFIX=C:\Program Files\Tesseract-OCR\tessdata"
+)
+
 echo [*] Starting OCR FastAPI service on http://127.0.0.1:8000 ...
 echo [*] Press CTRL+C at any time to stop the server.
 echo.

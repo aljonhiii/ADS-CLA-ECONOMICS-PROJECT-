@@ -43,8 +43,9 @@ def find_tesseract_binary() -> Optional[str]:
     if which_path:
         return which_path
 
-    # Common Windows install paths (e.g. UB-Mannheim or default installer)
+    # Common Windows install paths (e.g. UB-Mannheim or custom directory)
     common_paths = [
+        r"D:\tesseract\tesseract.exe",
         r"C:\Program Files\Tesseract-OCR\tesseract.exe",
         r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
         os.path.expandvars(r"%LOCALAPPDATA%\Programs\Tesseract-OCR\tesseract.exe"),
@@ -53,6 +54,9 @@ def find_tesseract_binary() -> Optional[str]:
     ]
     for p in common_paths:
         if os.path.isfile(p):
+            tessdata_dir = os.path.join(os.path.dirname(p), "tessdata")
+            if os.path.isdir(tessdata_dir) and not os.getenv("TESSDATA_PREFIX"):
+                os.environ["TESSDATA_PREFIX"] = tessdata_dir
             return p
     return None
 
