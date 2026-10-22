@@ -242,7 +242,7 @@ class RosterParser {
     /**
      * Cross-reference extracted student numbers against the database.
      */
-    private static function enrichWithDatabaseState(array $candidates, PDO $pdo, int $classId): array {
+    public static function enrichWithDatabaseState(array $candidates, PDO $pdo, int $classId): array {
         if (empty($candidates)) {
             return [];
         }

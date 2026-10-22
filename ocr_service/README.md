@@ -1,88 +1,152 @@
-# Tesseract OCR Microservice & Deployment Guide
+# Tesseract OCR Pipeline & Microservice Guide
 
-This microservice provides an Optical Character Recognition (OCR) API endpoint for the **Academic Management System**.
+High-Accuracy Optical Character Recognition (OCR) pipeline for the **Academic Management System**.
+Engineered for scanned documents, PDF class rosters, photographed student lists, and school notes.
 
 ---
 
 ## Architecture Overview
-- **Primary Website**: Hosted on **InfinityFree** (PHP 8.x + MySQL).
-  - Handles web requests, auth, session state, UI rendering, and database transactions.
-  - InfinityFree *cannot* run Tesseract directly.
-  - Digital PDFs with selectable text are extracted directly inside pure PHP via `PdfTextExtractor.php`.
-- **OCR Server**: Hosted on an external Linux machine, container, or cloud service (e.g. Render, Railway, Hugging Face Spaces, or a $4/mo Linux VPS).
-  - Handles heavy OCR image analysis and scanned PDF rasterization using **Tesseract OCR** and **Poppler**.
-  - Securely communicates with InfinityFree over HTTPS with the `X-OCR-API-KEY` secret header.
 
----
-
-## 1. Free Cloud Deployment (Recommended: Render.com)
-
-1. Create a free account at [Render.com](https://render.com).
-2. Click **New +** > **Web Service**.
-3. Choose **Deploy existing image from a registry** OR connect your GitHub repository pointing to the `ocr_service` folder.
-   - If using GitHub with Docker:
-     - Root Directory: `ocr_service`
-     - Runtime: **Docker**
-   - Environment Variables:
-     - `OCR_API_KEY`: `your_random_secret_token_here_2026`
-     - `PORT`: `8000`
-4. Click **Create Web Service**.
-5. Once deployed, Render will provide a free HTTPS URL:
-   `https://ams-ocr-service.onrender.com`
-6. Copy this URL and set it in your InfinityFree `.env` file:
-   ```env
-   OCR_SERVER_URL=https://ams-ocr-service.onrender.com/ocr
-   OCR_API_KEY=your_random_secret_token_here_2026
-   ```
-
----
-
-## 2. Docker Deployment (Any Linux VPS or Server)
-
-Run directly on any VPS (Ubuntu, Debian, CentOS) with Docker:
-
-```bash
-cd ocr_service
-docker build -t ams-ocr-service .
-docker run -d -p 8000:8000 \
-  -e OCR_API_KEY="ads_ocr_secure_secret_key_2026" \
-  --name ams_ocr ams-ocr-service
+```
+                                      ┌──────────────────────────────────────────────┐
+                                      │              Document Upload                 │
+                                      │         (PDF, JPG, PNG, WebP)                │
+                                      └──────────────────────┬───────────────────────┘
+                                                             │
+                                      ┌──────────────────────▼───────────────────────┐
+                                      │   Security & MIME Validation (PHP finfo)     │
+                                      │    - Content verification (getimagesize)     │
+                                      │    - Cryptographic SHA-256 Cache Check       │
+                                      └──────────┬─────────────────────────┬─────────┘
+                                                 │                         │
+                               (Digital PDF Text)│                         │(Scanned PDF or Image)
+                                                 │                         │
+                               ┌─────────────────▼────────┐      ┌─────────▼──────────────┐
+                               │  PdfTextExtractor.php    │      │ Cache Hit?             │
+                               │  - Pure PHP stream parse │      │ - Return in < 5ms      │
+                               │  - 0ms OCR overhead      │      └─────────┬──────────────┘
+                               └──────────────────────────┘                │
+                                                                           │(Cache Miss)
+                                                    ┌──────────────────────┴──────────────────────┐
+                                                    │                                             │
+                                         (Microservice Online)                          (Offline / Fallback)
+                                                    │                                             │
+                               ┌────────────────────▼─────────────────────┐       ┌───────────────▼──────────────┐
+                               │ Python FastAPI Microservice (Port 8000)  │       │ LocalTesseractEngine.php     │
+                               │ - OpenCV Preprocessing:                  │       │ - proc_open execution        │
+                               │   * EXIF orientation correction          │       │ - Safe escapeshellarg()      │
+                               │   * Resolution upscale (Cubic)           │       │ - Timeout enforcement        │
+                               │   * CLAHE contrast enhancement           │       │ - Isolated storage/tmp/      │
+                               │   * Automatic deskewing                  │       │ - Direct Tesseract CLI       │
+                               │   * Bilateral edge-preserving denoise    │       │   (D:\tesseract\tesseract)   │
+                               │ - PyPDFium2 300 DPI PDF rasterization    │       └───────────────┬──────────────┘
+                               │ - Tesseract LSTM Engine (--oem 1)        │                       │
+                               │ - Adaptive PSM 3/6 Multi-Pass Selection  │                       │
+                               └────────────────────┬─────────────────────┘                       │
+                                                    │                                             │
+                                                    └──────────────────────┬──────────────────────┘
+                                                                           │
+                                                            ┌──────────────▼──────────────┐
+                                                            │   OcrCache & OcrLogger      │
+                                                            │   - SHA-256 disk cache      │
+                                                            │   - storage/logs/ocr.log    │
+                                                            └──────────────┬──────────────┘
+                                                                           │
+                                                            ┌──────────────▼──────────────┐
+                                                            │      RosterParser.php       │
+                                                            │  Tokenize Student Records   │
+                                                            └─────────────────────────────┘
 ```
 
-Test health:
-```bash
-curl http://localhost:8000/health
+---
+
+## Key Capabilities
+
+1. **Dual-Engine Architecture with Automatic Fallback**:
+   - Primary: FastAPI microservice with OpenCV preprocessing and PyPDFium2.
+   - Fallback: Direct local execution of `D:\tesseract\tesseract.exe` via `LocalTesseractEngine.php`. If the Python microservice is offline, the PHP web application continues functioning without interruption.
+
+2. **OpenCV Preprocessing Pipeline (`ocr_service/preprocessor.py`)**:
+   - **EXIF Transpose**: Corrects smartphone camera orientation.
+   - **Resolution Normalization**: Upscales images where text character stroke height is below Tesseract's optimal recognition threshold.
+   - **CLAHE**: Contrast Limited Adaptive Histogram Equalization compensates for shadows, page gradients, and faint photocopy toner.
+   - **Deskewing**: Analyzes text line contours using minimum area rectangles to detect document skew and un-rotates the document.
+   - **Bilateral Filtering**: Denoises paper texture while keeping character edges razor-sharp.
+   - **Adaptive Thresholding**: Generates non-destructive Otsu and adaptive binarization for multi-pass evaluations.
+
+3. **Intelligent Tesseract Engine Configuration**:
+   - `--oem 1`: Neural Nets LSTM engine for superior character recognition.
+   - Multi-pass layout evaluation: Defaults to `--psm 3` for multi-column student rosters; automatically evaluates `--psm 6` (single block) if initial extraction yields sparse text.
+
+4. **Zero-Poppler PDF Processing**:
+   - Searchable/digital PDFs are extracted directly in pure PHP via `PdfTextExtractor.php`.
+   - Scanned PDFs are rasterized at 300 DPI using `pypdfium2`, eliminating any external Poppler / `pdftoppm` installation requirement on Windows.
+
+5. **Security & Data Isolation**:
+   - Real MIME type verification via `finfo` and image structure check via `getimagesize()`.
+   - Content-signature verification for PDFs (`%PDF-`).
+   - Isolated temporary storage in `storage/tmp/` outside web root, protected by `.htaccess` and `web.config`.
+   - Injection-safe execution using `escapeshellarg()` and `proc_open`.
+   - User-safe error sanitization: system paths and secrets are never exposed to clients.
+
+6. **Deduplication & Performance Caching**:
+   - SHA-256 content hashing caches results in `storage/ocr_cache/`.
+   - Duplicate uploads or re-evaluations return instantly (< 5ms).
+
+---
+
+## Configuration (`.env`)
+
+```env
+# OCR Engine Mode: 'auto' (service with local fallback), 'service' (microservice only), 'local' (local CLI only)
+OCR_ENGINE=auto
+
+# Microservice URL & Secret Key
+OCR_SERVER_URL=http://localhost:8000/ocr
+OCR_API_KEY=ads_ocr_secure_secret_key_2026
+
+# Host Tesseract executable path
+TESSERACT_PATH=D:\tesseract\tesseract.exe
+
+# Layout & Engine Defaults
+OCR_DEFAULT_LANG=eng
+OCR_DEFAULT_PSM=3
+OCR_DEFAULT_OEM=1
+
+# Ingestion Constraints
+OCR_MAX_FILE_SIZE_MB=10
+OCR_MAX_PAGES=5
+OCR_TIMEOUT_SECONDS=30
+
+# Performance Caching
+OCR_ENABLE_CACHE=true
+OCR_CACHE_TTL=86400
 ```
 
 ---
 
-## 3. Local Development on Windows (Testing with XAMPP)
+## Running the Application
 
-1. Ensure Python 3.10+ is installed (`python --version`).
-2. Open PowerShell in `ocr_service/`:
-   ```powershell
-   cd d:\xampp\htdocs\ads_client\ocr_service
-   pip install -r requirements.txt
-   ```
-3. Run the microservice locally:
-   ```powershell
-   python -m uvicorn app:app --port 8000 --reload
-   ```
-4. Verify local endpoint in your browser:
-   [http://localhost:8000/health](http://localhost:8000/health)
+### 1. Starting the Microservice (Windows XAMPP)
+Double-click `start_ocr.bat` in the repository root or run:
+```powershell
+cd d:\xampp\htdocs\ads_client
+.\start_ocr.bat
+```
+The service will start on `http://127.0.0.1:8000`.
 
----
+### 2. Checking Service Health
+Open in your browser or run:
+```powershell
+d:\xampp\php\php.exe -r "echo file_get_contents('http://127.0.0.1:8000/health');"
+```
 
-## 4. InfinityFree PHP Deployment Checklist
+### 3. Running the Automated PHP Test Suite
+```powershell
+d:\xampp\php\php.exe tests/test_ocr_pipeline.php
+```
 
-On InfinityFree:
-1. Upload your PHP codebase to `htdocs/`.
-2. Edit `.env` in the root:
-   ```env
-   OCR_SERVER_URL=https://your-ocr-server.onrender.com/ocr
-   OCR_API_KEY=your_random_secret_token_here_2026
-   OCR_MAX_FILE_SIZE_MB=5
-   OCR_MAX_PAGES=5
-   OCR_TIMEOUT_SECONDS=30
-   ```
-3. Test uploading both digital PDFs and scanned images.
+### 4. Running the Accuracy & Speed Benchmark
+```powershell
+python ocr_service/evaluate.py
+```

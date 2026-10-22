@@ -219,7 +219,7 @@ require_once __DIR__ . '/../includes/header.php';
 <div class="card mb-4">
     <div class="card-body p-3">
         <form method="GET" class="row g-2 align-items-end">
-            <div class="col-md-6">
+            <div class="col-md-<?php echo $class_id > 0 ? '5' : '6'; ?>">
                 <label class="form-label small text-muted mb-1">Class Section</label>
                 <select name="class_id" class="form-select" onchange="this.form.querySelector('[name=session_id]').value=''; this.form.submit();">
                     <option value="">— Choose a class —</option>
@@ -230,7 +230,7 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-<?php echo $class_id > 0 ? '5' : '6'; ?>">
                 <label class="form-label small text-muted mb-1">Meeting Date / Session</label>
                 <select name="session_id" class="form-select" onchange="this.form.submit();" <?php echo empty($sessions_list) ? 'disabled' : ''; ?>>
                     <option value="">— Choose a session —</option>
@@ -252,6 +252,13 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endforeach; ?>
                 </select>
             </div>
+            <?php if ($class_id > 0): ?>
+                <div class="col-md-2">
+                    <a href="../api/export_attendance.php?class_id=<?php echo $class_id; ?>" class="btn btn-subtle text-success w-100" title="Export attendance records to Excel / CSV">
+                        <i class="bi bi-file-earmark-arrow-down me-1"></i> Export Excel
+                    </a>
+                </div>
+            <?php endif; ?>
         </form>
     </div>
 </div>

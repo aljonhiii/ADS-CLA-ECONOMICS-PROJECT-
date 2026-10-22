@@ -29,6 +29,11 @@ $RECYCLE.BIN/
 *.sql.zip
 __pycache__/
 *.pyc
+storage/ocr_cache/*.json
+storage/tmp/*
+!storage/tmp/.gitkeep
+!storage/ocr_cache/.gitkeep
+!storage/logs/.gitkeep
 
 # ─── Dependencies ─────────────────────────────────────
 /vendor/

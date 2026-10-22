@@ -12,8 +12,8 @@
  * Follows Donezo light design system and WCAG 2.2 AA standards.
  */
 
-$page_title = 'Class Rosters & OCR Enrollment';
-require_once __DIR__ . '/../includes/header.php';
+ob_start();
+require_once __DIR__ . '/../includes/permissions.php';
 require_role(['instructor']);
 
 $pdo = db_connect();
@@ -40,6 +40,11 @@ $class_id = (int)($_GET['class_id'] ?? ($my_classes[0]['class_id'] ?? 0));
 $class_info = null;
 
 if ($class_id > 0) {
+    if (!instructor_owns_class($pdo, $class_id)) {
+        set_flash('danger', 'Access denied to this class.');
+        header('Location: students.php');
+        exit;
+    }
     $stmt = $pdo->prepare(
         'SELECT c.*, s.subject_code, s.subject_name
          FROM classes c
@@ -49,7 +54,7 @@ if ($class_id > 0) {
     $stmt->execute([$class_id, $inst_id]);
     $class_info = $stmt->fetch();
     if (!$class_info) {
-        $class_id = 0; // Not authorized or doesn't exist
+        $class_id = 0;
     }
 }
 
@@ -91,12 +96,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $class_id > 0) {
                     $student_id = (int)$existing['student_id'];
                 } else {
                     // Create user
-                    $username = 's_' . preg_replace('/[^a-zA-Z0-9]/', '', $s_num);
-                    // Check duplicate username
+                    $base_user = 's_' . preg_replace('/[^a-zA-Z0-9]/', '', $s_num);
+                    if ($base_user === 's_') {
+                        $base_user = 's_' . time();
+                    }
+                    $username = $base_user;
+                    $suffix = 1;
                     $u_check = $pdo->prepare('SELECT user_id FROM users WHERE username = ?');
-                    $u_check->execute([$username]);
-                    if ($u_check->fetch()) {
-                        $username .= '_' . rand(100, 999);
+                    while (true) {
+                        $u_check->execute([$username]);
+                        if (!$u_check->fetch()) {
+                            break;
+                        }
+                        $username = $base_user . '_' . $suffix++;
                     }
 
                     $pwd_hash = password_hash('password123', PASSWORD_DEFAULT);
@@ -121,19 +133,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $class_id > 0) {
                     'INSERT IGNORE INTO student_classes (student_id, class_id) VALUES (?, ?)'
                 );
                 $sc_stmt->execute([$student_id, $class_id]);
+                $enrolled = ($sc_stmt->rowCount() > 0);
 
-                // Audit log
-                $a_stmt = $pdo->prepare('INSERT INTO audit_logs (user_id, action, details) VALUES (?, ?, ?)');
-                $a_stmt->execute([
-                    current_user()['user_id'],
-                    'STUDENT_ENROLLED_MANUAL',
-                    "Enrolled student #$s_num into class_id $class_id"
-                ]);
-
-                $pdo->commit();
-                set_flash('success', "Student {$f_name} {$l_name} ({$s_num}) enrolled successfully.");
+                if ($enrolled) {
+                    // Audit log
+                    $a_stmt = $pdo->prepare('INSERT INTO audit_logs (user_id, action, details) VALUES (?, ?, ?)');
+                    $a_stmt->execute([
+                        current_user()['user_id'],
+                        'STUDENT_ENROLLED_MANUAL',
+                        "Enrolled student #$s_num into class_id $class_id"
+                    ]);
+                    $pdo->commit();
+                    set_flash('success', "Student {$f_name} {$l_name} ({$s_num}) enrolled successfully.");
+                } else {
+                    $pdo->commit();
+                    set_flash('info', "Student {$f_name} {$l_name} ({$s_num}) is already enrolled in this class.");
+                }
             } catch (Exception $e) {
-                $pdo->rollBack();
+                if ($pdo->inTransaction()) {
+                    $pdo->rollBack();
+                }
                 error_log('Enrollment error: ' . $e->getMessage());
                 set_flash('danger', 'Failed to enroll student: ' . $e->getMessage());
             }
@@ -149,17 +168,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $class_id > 0) {
             set_flash('warning', 'Please select an image or PDF document to upload.');
         } else {
             $client = new OcrClient();
-            $ocr_result = $client->processUpload($_FILES['document']);
+            $options = [
+                'profile' => trim($_POST['profile'] ?? 'auto'),
+                'psm'     => !empty($_POST['psm']) ? (int)$_POST['psm'] : null,
+                'lang'    => trim($_POST['lang'] ?? '') ?: null,
+            ];
+            $ocr_result = $client->processUpload($_FILES['document'], $options);
 
             if (!$ocr_result['success']) {
                 set_flash('danger', $ocr_result['error'] ?? 'Document processing failed.');
             } else {
-                $raw_text = $ocr_result['text'];
-                $parsed_data = RosterParser::parse($raw_text, $pdo, $class_id);
-                if ($parsed_data['total_found'] === 0) {
-                    set_flash('warning', 'Document text was extracted, but no student ID patterns were identified. You can review the raw text below and adjust.');
+                if (!empty($ocr_result['candidates'])) {
+                    $candidates = RosterParser::enrichWithDatabaseState($ocr_result['candidates'], $pdo, $class_id);
+                    $newCount = 0;
+                    $existingCount = 0;
+                    $alreadyEnrolledCount = 0;
+                    foreach ($candidates as $c) {
+                        if ($c['status'] === 'already_enrolled') $alreadyEnrolledCount++;
+                        elseif ($c['status'] === 'existing') $existingCount++;
+                        else $newCount++;
+                    }
+                    $parsed_data = [
+                        'candidates' => $candidates,
+                        'total_found' => count($candidates),
+                        'new_count' => $newCount,
+                        'existing_count' => $existingCount,
+                        'already_enrolled_count' => $alreadyEnrolledCount,
+                        'detected_section' => $ocr_result['detected_section'] ?? ''
+                    ];
                 } else {
-                    set_flash('info', "Extracted {$parsed_data['total_found']} student records from {$ocr_result['filename']}. Please review before confirming.");
+                    $raw_text = $ocr_result['text'];
+                    $parsed_data = RosterParser::parse($raw_text, $pdo, $class_id);
+                }
+
+                if ($parsed_data['total_found'] === 0) {
+                    set_flash('warning', 'Document text was extracted, but no student records were identified. You can review the raw text below and adjust.');
+                } else {
+                    $sourceMsg = ($ocr_result['source'] === 'spreadsheet') ? 'Spreadsheet parsed instantly' : 'Extracted';
+                    set_flash('info', "{$sourceMsg} with {$parsed_data['total_found']} student records from {$ocr_result['filename']}. Please review before confirming.");
                 }
             }
         }
@@ -194,7 +240,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $class_id > 0) {
         }
 
         $imported_count = 0;
-        $errors = [];
+        $already_enrolled_count = 0;
+        $created_count = 0;
 
         try {
             $pdo->beginTransaction();
@@ -227,11 +274,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $class_id > 0) {
                 if ($existing) {
                     $student_id = (int)$existing['student_id'];
                 } else {
-                    // Create new student user
-                    $username = 's_' . preg_replace('/[^a-zA-Z0-9]/', '', $s_num);
-                    $stmt_check_username->execute([$username]);
-                    if ($stmt_check_username->fetch()) {
-                        $username .= '_' . rand(100, 999);
+                    // Create new student user with collision-safe username
+                    $base_user = 's_' . preg_replace('/[^a-zA-Z0-9]/', '', $s_num);
+                    if ($base_user === 's_') {
+                        $base_user = 's_' . time();
+                    }
+                    $username = $base_user;
+                    $suffix = 1;
+                    while (true) {
+                        $stmt_check_username->execute([$username]);
+                        if (!$stmt_check_username->fetch()) {
+                            break;
+                        }
+                        $username = $base_user . '_' . $suffix++;
                     }
 
                     $email = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $f_name) . '.' . preg_replace('/[^a-zA-Z0-9]/', '', $l_name) . '@school.edu');
@@ -248,27 +303,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $class_id > 0) {
                         $section
                     ]);
                     $student_id = (int)$pdo->lastInsertId();
+                    $created_count++;
                 }
 
                 // 2. Enroll student into this class
                 $stmt_enroll->execute([$student_id, $class_id]);
                 if ($stmt_enroll->rowCount() > 0) {
                     $imported_count++;
+                } else {
+                    $already_enrolled_count++;
                 }
             }
 
             // Audit trail
-            $stmt_audit = $pdo->prepare('INSERT INTO audit_logs (user_id, action, details) VALUES (?, ?, ?)');
-            $stmt_audit->execute([
-                current_user()['user_id'],
-                'STUDENTS_IMPORTED_OCR',
-                "Enrolled $imported_count students into class_id $class_id"
-            ]);
+            if ($imported_count > 0) {
+                $stmt_audit = $pdo->prepare('INSERT INTO audit_logs (user_id, action, details) VALUES (?, ?, ?)');
+                $stmt_audit->execute([
+                    current_user()['user_id'],
+                    'STUDENTS_IMPORTED_OCR',
+                    "Enrolled $imported_count students into class_id $class_id ($created_count new accounts)"
+                ]);
+            }
 
             $pdo->commit();
-            set_flash('success', "Batch import successful! Enrolled $imported_count student(s) into {$class_info['subject_code']}.");
+
+            $subject_name = $class_info['subject_code'] ?? 'the selected class';
+            if ($imported_count > 0 && $already_enrolled_count > 0) {
+                set_flash('success', "Batch import successful! Enrolled $imported_count student(s) into {$subject_name} ($already_enrolled_count were already enrolled).");
+            } elseif ($imported_count > 0) {
+                set_flash('success', "Batch import successful! Enrolled $imported_count student(s) into {$subject_name}.");
+            } elseif ($already_enrolled_count > 0) {
+                set_flash('info', "All $already_enrolled_count selected student(s) are already enrolled in {$subject_name}.");
+            } else {
+                set_flash('warning', 'No valid student records were imported.');
+            }
         } catch (Exception $e) {
-            $pdo->rollBack();
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
             error_log('Batch import error: ' . $e->getMessage());
             set_flash('danger', 'Failed to import batch: ' . $e->getMessage());
         }
@@ -283,7 +355,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $class_id > 0) {
         if ($sc_id > 0) {
             $stmt = $pdo->prepare('DELETE FROM student_classes WHERE student_class_id = ? AND class_id = ?');
             $stmt->execute([$sc_id, $class_id]);
-            set_flash('info', 'Student removed from class enrollment.');
+            if ($stmt->rowCount() > 0) {
+                $stmt_audit = $pdo->prepare('INSERT INTO audit_logs (user_id, action, details) VALUES (?, ?, ?)');
+                $stmt_audit->execute([
+                    current_user()['user_id'],
+                    'STUDENT_UNENROLLED',
+                    "Removed student_class_id $sc_id from class_id $class_id"
+                ]);
+                set_flash('info', 'Student removed from class enrollment.');
+            }
         }
         header("Location: students.php?class_id=$class_id");
         exit;
@@ -305,6 +385,9 @@ if ($class_id > 0) {
     $stmt->execute([$class_id]);
     $enrolled_students = $stmt->fetchAll();
 }
+
+$page_title = 'Class Rosters & OCR Enrollment';
+require_once __DIR__ . '/../includes/header.php';
 ?>
 
 <!-- Page Header (Donezo Style) -->
@@ -355,7 +438,7 @@ if ($class_id > 0) {
             <i class="bi bi-people me-1"></i> Current Enrolled Roster (<?php echo count($enrolled_students); ?>)
         </button>
         <button class="tab-btn <?php echo $active_tab === 'ocr' ? 'active' : ''; ?>" data-tab-target="#ocr-pane" type="button">
-            <i class="bi bi-camera me-1"></i> OCR Document / Image Ingestion
+            <i class="bi bi-file-earmark-spreadsheet me-1"></i> Document, Excel & Photo Ingestion
         </button>
     </div>
 
@@ -376,6 +459,9 @@ if ($class_id > 0) {
                             <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
                             <input type="text" class="form-control form-control-sm border-start-0" placeholder="Filter student..." data-table-search="enrolledStudentsTable">
                         </div>
+                        <a href="../api/export_roster.php?class_id=<?php echo $class_id; ?>" class="btn btn-sm btn-subtle text-success" title="Download Excel/CSV roster">
+                            <i class="bi bi-file-earmark-arrow-down me-1"></i> Export Excel
+                        </a>
                         <a href="grades.php?class_id=<?php echo $class_id; ?>" class="btn btn-sm btn-subtle">
                             <i class="bi bi-pencil-square text-primary me-1"></i> Grades
                         </a>
@@ -449,11 +535,16 @@ if ($class_id > 0) {
             
             <!-- Upload Box Card -->
             <div class="card shadow-sm border-0 mb-4">
-                <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
                     <span class="fw-bold text-dark">
-                        <i class="bi bi-cloud-arrow-up text-success me-2"></i>Upload Student Roster Document (Image or PDF)
+                        <i class="bi bi-cloud-arrow-up text-success me-2"></i>Upload Student Roster (Excel, PDF, or Photo)
                     </span>
-                    <span class="badge bg-secondary">Tesseract OCR & Digital PDF Ingestion</span>
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="../api/download_template.php" class="btn btn-sm btn-subtle text-primary" title="Download pre-formatted Excel/CSV template">
+                            <i class="bi bi-file-earmark-arrow-down me-1"></i> Download Template (.csv)
+                        </a>
+                        <span class="badge bg-secondary">Excel .xlsx/.csv • Digital PDF • Tesseract OCR</span>
+                    </div>
                 </div>
                 <div class="card-body p-4">
                     <form method="POST" enctype="multipart/form-data" id="ocrUploadForm">
@@ -462,16 +553,54 @@ if ($class_id > 0) {
 
                         <div class="row g-3 align-items-center">
                             <div class="col-md-8">
-                                <label class="form-label small text-muted fw-semibold mb-1">Select Document or Photo Roster</label>
-                                <input type="file" name="document" class="form-control" accept=".jpg,.jpeg,.png,.pdf" required id="ocrFileInput">
+                                <label class="form-label small text-muted fw-semibold mb-1">Select Spreadsheet, Document, or Photo Roster</label>
+                                <input type="file" name="document" class="form-control" accept=".xlsx,.xls,.csv,.pdf,.jpg,.jpeg,.png,.webp,.bmp" required id="ocrFileInput">
                                 <div class="form-text small mt-1">
-                                    <i class="bi bi-info-circle me-1"></i> Supported: <strong>JPG, PNG, PDF</strong> (Max 5MB, up to 5 pages). Digital PDFs extract immediately; scanned files are processed via secure OCR server.
+                                    <i class="bi bi-info-circle me-1"></i> Supported: <strong>Excel (.xlsx, .csv)</strong>, <strong>PDF</strong>, and <strong>Images (JPG, PNG)</strong> (Max 10MB). Excel spreadsheets and digital PDFs extract instantly with 100% precision.
                                 </div>
                             </div>
                             <div class="col-md-4 d-flex align-items-end">
                                 <button type="submit" class="btn btn-forest w-100 py-2 shadow-sm" id="ocrSubmitBtn">
                                     <i class="bi bi-lightning-charge me-1"></i> Extract & Parse Roster
                                 </button>
+                            </div>
+                        </div>
+
+                        <!-- Advanced OCR & Preprocessing Options (Collapsible) -->
+                        <div class="mt-3">
+                            <a class="text-decoration-none small text-muted d-inline-flex align-items-center" data-bs-toggle="collapse" href="#advancedOcrOptions" role="button" aria-expanded="false" aria-controls="advancedOcrOptions">
+                                <i class="bi bi-sliders2 me-1"></i> Advanced Preprocessing & Layout Settings (Optional)
+                            </a>
+                            <div class="collapse mt-2" id="advancedOcrOptions">
+                                <div class="p-3 bg-light rounded-3 border">
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold text-secondary mb-1">Preprocessing Profile</label>
+                                            <select name="profile" class="form-select form-select-sm">
+                                                <option value="auto" selected>Auto (Deskew, CLAHE, Denoise)</option>
+                                                <option value="roster">Class Roster (Multi-Column Table)</option>
+                                                <option value="school_notes">Camera Photo / School Notes (Shadow Removal)</option>
+                                                <option value="scanned_doc">Clean Scanned Document (Otsu Binarize)</option>
+                                                <option value="raw">Raw (Minimal Preprocessing)</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold text-secondary mb-1">Page Segmentation (PSM)</label>
+                                            <select name="psm" class="form-select form-select-sm">
+                                                <option value="3" selected>PSM 3 — Auto Multi-Column Table</option>
+                                                <option value="6">PSM 6 — Single Uniform Block</option>
+                                                <option value="4">PSM 4 — Single Column Variable Sizes</option>
+                                                <option value="11">PSM 11 — Sparse Text</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <label class="form-label small fw-semibold text-secondary mb-1">Document Language</label>
+                                            <select name="lang" class="form-select form-select-sm">
+                                                <option value="eng" selected>English (eng)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 

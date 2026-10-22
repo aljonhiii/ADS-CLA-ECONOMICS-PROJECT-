@@ -208,7 +208,7 @@ require_once __DIR__ . '/../includes/header.php';
             <div class="col-auto">
                 <label for="classSelect" class="form-label fw-bold mb-0 text-muted small text-uppercase">Select Class</label>
             </div>
-            <div class="col-md-7">
+            <div class="col-md-6">
                 <select id="classSelect" name="class_id" class="form-select" onchange="this.form.submit()">
                     <?php if (empty($my_classes)): ?>
                         <option value="">No classes assigned</option>
@@ -221,6 +221,13 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php endif; ?>
                 </select>
             </div>
+            <?php if ($class_id > 0): ?>
+                <div class="col-md-auto ms-auto d-flex gap-2">
+                    <a href="../api/export_grades.php?class_id=<?php echo $class_id; ?>" class="btn btn-sm btn-subtle text-success" title="Download Excel/CSV grade sheet">
+                        <i class="bi bi-file-earmark-arrow-down me-1"></i> Export Grades (Excel)
+                    </a>
+                </div>
+            <?php endif; ?>
         </form>
     </div>
 </div>

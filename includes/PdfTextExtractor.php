@@ -82,6 +82,48 @@ class PdfTextExtractor {
     }
 
     /**
+     * Extract embedded JPEG images from a scanned PDF file.
+     * Most scanner apps and multifunction copiers embed scanned pages as JPEG streams (/DCTDecode).
+     *
+     * @param string $filePath Path to PDF file.
+     * @param string $tempDir  Directory to write temporary image files.
+     * @return array Array of temporary image file paths.
+     */
+    public static function extractEmbeddedJpegImages(string $filePath, string $tempDir): array {
+        $content = @file_get_contents($filePath);
+        if ($content === false || strlen($content) === 0) {
+            return [];
+        }
+
+        $images = [];
+        $offset = 0;
+        $idx = 1;
+        $soi = chr(0xFF) . chr(0xD8) . chr(0xFF);
+        $eoi = chr(0xFF) . chr(0xD9);
+
+        while (($start = strpos($content, $soi, $offset)) !== false) {
+            $end = strpos($content, $eoi, $start + 3);
+            if ($end !== false) {
+                $len = ($end + 2) - $start;
+                // Filter out tiny icons or logos (< 8KB)
+                if ($len >= 8192) {
+                    $jpgBytes = substr($content, $start, $len);
+                    $tmpPath = rtrim($tempDir, '/\\') . DIRECTORY_SEPARATOR . 'pdf_img_p' . $idx . '_' . bin2hex(random_bytes(6)) . '.jpg';
+                    if (@file_put_contents($tmpPath, $jpgBytes) !== false) {
+                        $images[] = $tmpPath;
+                        $idx++;
+                    }
+                }
+                $offset = $end + 2;
+            } else {
+                break;
+            }
+        }
+
+        return $images;
+    }
+
+    /**
      * Find and decompress streams, then parse PDF text operators (BT...ET).
      */
     private static function extractTextFromStreams(string $content): string {
