@@ -33,6 +33,7 @@ class RosterParser {
         $seenNumbers = [];
         $autoCounter = 1;
 
+        // Pass 1: Try standard horizontal line-by-line parsing
         foreach ($lines as $line) {
             $trimmed = trim($line);
             if ($trimmed === '') continue;
@@ -60,6 +61,14 @@ class RosterParser {
                     $parsedCandidates[] = $mc;
                 }
             }
+        }
+
+        // Pass 2: If horizontal parsing found no candidates (or fewer candidates than vertical records),
+        // parse vertical/multi-line blocks where student IDs and names span consecutive lines
+        $cleanLines = array_values(array_filter(array_map('trim', $lines), fn($l) => $l !== ''));
+        $verticalCandidates = self::parseVerticalBlocks($cleanLines, $documentSection);
+        if (count($verticalCandidates) > count($parsedCandidates)) {
+            $parsedCandidates = $verticalCandidates;
         }
 
         // 3. Cross-reference candidates against database records
@@ -351,10 +360,10 @@ class RosterParser {
         if (preg_match('/(?:GRADE\s*\d+\s*[-–—:]\s*[A-Za-z0-9\s]+)/i', $text, $m)) {
             return trim($m[0]);
         }
-        if (preg_match('/(?:Section|Year\s*&\s*Section|Class|Yr\s*&\s*Sec)[:\s]+([A-Z0-9\-\s]{3,15})/i', $text, $m)) {
+        if (preg_match('/(?:Section|Year\s*&\s*Section|Class|Yr\s*&\s*Sec)[:\s]+([A-Za-z0-9\-_]{2,15})/i', $text, $m)) {
             $sec = trim($m[1]);
             // Filter out common noise
-            if (!preg_match('/(name|student|date|instructor|subject)/i', $sec)) {
+            if (!preg_match('/(name|student|date|instructor|subject|number|email)/i', $sec)) {
                 return $sec;
             }
         }
@@ -375,5 +384,89 @@ class RosterParser {
             if (strpos($lower, $w) !== false) $count++;
         }
         return ($count >= 2);
+    }
+
+    /**
+     * Parse multi-line/vertical student blocks where student number, last name,
+     * first name, middle name, and section are on consecutive lines.
+     */
+    public static function parseVerticalBlocks(array $cleanLines, string $defaultSection = ''): array {
+        $idPattern = '/^#?\s*(\d{4}[-\s]?\d{4,6}|\d{2}[-\s]?\d{4}[-\s]?\d{3}|\d{7,10})$/';
+        $studentIndices = [];
+        foreach ($cleanLines as $idx => $line) {
+            if (preg_match($idPattern, trim($line), $m)) {
+                $studentIndices[] = ['idx' => $idx, 'number' => $m[1]];
+            }
+        }
+
+        if (empty($studentIndices)) {
+            return [];
+        }
+
+        $candidates = [];
+        $totalLines = count($cleanLines);
+
+        for ($i = 0; $i < count($studentIndices); $i++) {
+            $cur = $studentIndices[$i];
+            $nextIdx = ($i + 1 < count($studentIndices)) ? $studentIndices[$i + 1]['idx'] : $totalLines;
+
+            $sNum = $cur['number'];
+            $fields = array_values(array_filter(
+                array_slice($cleanLines, $cur['idx'] + 1, $nextIdx - $cur['idx'] - 1),
+                fn($f) => trim($f) !== '' && !preg_match('/^(student\s*list|official\s*class|page\s*\d+|section\s*:|grade\s*:)/i', $f)
+            ));
+
+            if (empty($fields)) {
+                continue;
+            }
+
+            $lName = '';
+            $fName = '';
+            $mName = '';
+            $sec = $defaultSection;
+
+            // Check if the last field is a section (e.g. ACT-AD, BSIT-3A)
+            $secPattern = '/^([A-Z]{2,6}[-\s]?[A-Z0-9]{1,4})\s*(?:ee[A-Za-z0-9]*)?$/i';
+            if (count($fields) >= 2 && preg_match($secPattern, end($fields), $sm)) {
+                $sec = trim($sm[1]);
+                array_pop($fields);
+            }
+
+            if (count($fields) >= 3) {
+                $lName = $fields[0];
+                $fName = $fields[1];
+                $mName = implode(' ', array_slice($fields, 2));
+            } elseif (count($fields) === 2) {
+                $lName = $fields[0];
+                $fName = $fields[1];
+            } elseif (count($fields) === 1) {
+                $single = $fields[0];
+                if (strpos($single, ',') !== false) {
+                    $p = explode(',', $single, 2);
+                    $lName = trim($p[0]);
+                    $tokens = preg_split('/\s+/', trim($p[1]));
+                    $mName = count($tokens) >= 2 ? array_pop($tokens) : '';
+                    $fName = implode(' ', $tokens);
+                } else {
+                    $tokens = preg_split('/\s+/', trim($single));
+                    $lName = array_shift($tokens);
+                    $mName = count($tokens) >= 2 ? array_pop($tokens) : '';
+                    $fName = implode(' ', $tokens);
+                }
+            }
+
+            if (!empty($lName) || !empty($fName)) {
+                $candidates[] = [
+                    'student_number' => $sNum,
+                    'last_name' => ucwords(strtolower(trim($lName))),
+                    'first_name' => ucwords(strtolower(trim($fName))),
+                    'middle_name' => ucwords(strtolower(trim($mName, ' .'))),
+                    'yr_section' => $sec ?: ($defaultSection ?: '1-A'),
+                    'email' => strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $fName) . '.' . preg_replace('/[^a-zA-Z0-9]/', '', $lName) . '@school.edu')
+                ];
+            }
+        }
+
+        return $candidates;
     }
 }

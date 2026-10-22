@@ -406,7 +406,10 @@ def process_pdf(
     has_empty_page = False
 
     for i, page in enumerate(pdf_reader.pages):
-        page_text = page.extract_text() or ""
+        try:
+            page_text = page.extract_text(extraction_mode="layout") or ""
+        except Exception:
+            page_text = page.extract_text() or ""
         clean_page_text = page_text.strip()
         if len(clean_page_text) < 15:
             has_empty_page = True
