@@ -128,12 +128,18 @@ class RosterParser {
         // Strip common roster status words
         $remaining = preg_replace('/\b(regular|irregular|enrolled|active|transferee|repeater)\b/i', '', $remaining);
 
-        // Detect line-specific section if present
+        // Detect line-specific section if present, including OCR border noise (e.g. ACT-ADeeACT)
         $section = $defaultSection;
-        if (preg_match('/\b([A-Z]{2,5}\s*\d+[-\s]?[A-Z0-9]?|\d+[-\s][A-Z])\b/i', $remaining, $secMatch)) {
+        $secRegex = '/\b([A-Z]{2,6}[-\s]?[A-Z0-9]{1,4})\s*(?:ee[A-Za-z0-9]*)?\s*$/i';
+        if (preg_match($secRegex, $remaining, $secMatch)) {
             $section = trim($secMatch[1]);
-            // Remove section token from remaining text
-            $remaining = str_replace($secMatch[0], '', $remaining);
+            $remaining = preg_replace($secRegex, '', $remaining);
+        } elseif (!empty($defaultSection)) {
+            $dPattern = '/\b' . preg_quote($defaultSection, '/') . '\b(?:\s*ee[A-Za-z0-9]*)?/i';
+            if (preg_match($dPattern, $remaining, $dMatch)) {
+                $section = $defaultSection;
+                $remaining = str_replace($dMatch[0], '', $remaining);
+            }
         }
 
         // Clean up remaining text to parse name
@@ -161,58 +167,70 @@ class RosterParser {
      * Tokenize name text into Last, First, and Middle name.
      */
     private static function splitName(string $name): array {
-        $last = '';
-        $first = '';
-        $middle = '';
-
-        // Case A: Contains a comma -> "Dela Cruz, Juan Santos"
+        // Case A: Contains a comma -> "Dela Cruz, Juan Santos" (Standard Last, First Middle)
         if (strpos($name, ',') !== false) {
             $parts = explode(',', $name, 2);
             $last = trim($parts[0]);
             $firstMiddle = trim($parts[1]);
 
             $tokens = preg_split('/\s+/', $firstMiddle);
+            $first = '';
+            $middle = '';
             if (count($tokens) === 1) {
                 $first = $tokens[0];
             } elseif (count($tokens) >= 2) {
-                // If last token is 1 letter with dot (e.g. "S.") or single word, consider middle name
-                $lastToken = end($tokens);
-                if (strlen(trim($lastToken, '.')) <= 2 || count($tokens) > 2) {
-                    $middle = array_pop($tokens);
-                    $first = implode(' ', $tokens);
-                } else {
-                    $middle = array_pop($tokens);
-                    $first = implode(' ', $tokens);
-                }
+                $middle = array_pop($tokens);
+                $first = implode(' ', $tokens);
+            }
+            return [
+                'last_name' => ucwords(strtolower($last)),
+                'first_name' => ucwords(strtolower($first)),
+                'middle_name' => ucwords(strtolower(trim($middle, ' .')))
+            ];
+        }
+
+        // Case B: Tabular roster format (Last Name, First Name, Middle Name space-separated)
+        $tokens = preg_split('/\s+/', trim($name));
+        if (empty($tokens)) {
+            return ['last_name' => '', 'first_name' => '', 'middle_name' => ''];
+        }
+
+        if (count($tokens) === 1) {
+            return ['last_name' => ucwords(strtolower($tokens[0])), 'first_name' => '', 'middle_name' => ''];
+        }
+
+        if (count($tokens) === 2) {
+            return ['last_name' => ucwords(strtolower($tokens[0])), 'first_name' => ucwords(strtolower($tokens[1])), 'middle_name' => ''];
+        }
+
+        // Compound Filipino Last Names ("Dela Cruz", "De Los Santos", etc.)
+        $lastPrefixes = ['dela', 'de', 'del', 'san', 'santa', 'dos', 'al'];
+        $last = '';
+        if (in_array(strtolower($tokens[0]), $lastPrefixes, true) && count($tokens) >= 3) {
+            if (strtolower($tokens[0]) === 'de' && in_array(strtolower($tokens[1]), ['los', 'la', 'las'], true) && count($tokens) >= 4) {
+                $last = $tokens[0] . ' ' . $tokens[1] . ' ' . $tokens[2];
+                array_splice($tokens, 0, 3);
+            } else {
+                $last = $tokens[0] . ' ' . $tokens[1];
+                array_splice($tokens, 0, 2);
             }
         } else {
-            // Case B: No comma -> "Juan Santos Dela Cruz" or "Juan Dela Cruz"
-            $tokens = preg_split('/\s+/', $name);
-            if (count($tokens) === 1) {
-                $last = $tokens[0];
-            } elseif (count($tokens) === 2) {
-                $first = $tokens[0];
-                $last = $tokens[1];
-            } elseif (count($tokens) >= 3) {
-                // Handle multi-word last names like "Dela Cruz", "De Los Reyes", "Del Rosario"
-                $lastPrefixes = ['dela', 'de', 'del', 'san', 'santa', 'dos'];
-                $count = count($tokens);
-
-                if (in_array(strtolower($tokens[$count - 2]), $lastPrefixes, true)) {
-                    $last = $tokens[$count - 2] . ' ' . $tokens[$count - 1];
-                    array_splice($tokens, -2);
-                } else {
-                    $last = array_pop($tokens);
-                }
-
-                if (count($tokens) > 1) {
-                    $middle = array_pop($tokens);
-                    $first = implode(' ', $tokens);
-                } else {
-                    $first = implode(' ', $tokens);
-                }
-            }
+            $last = array_shift($tokens);
         }
+
+        // Check for Suffix at end: JR, SR, II, III, IV
+        $suffix = '';
+        $lastToken = end($tokens);
+        if (preg_match('/^(jr\.?|sr\.?|ii|iii|iv)$/i', $lastToken)) {
+            $suffix = ' ' . array_pop($tokens);
+        }
+
+        // Middle name is the final token (e.g. initial "W.", "S.", or full "Facunla", "Ishikawa")
+        $middle = '';
+        if (!empty($tokens)) {
+            $middle = array_pop($tokens) . $suffix;
+        }
+        $first = implode(' ', $tokens);
 
         return [
             'last_name' => ucwords(strtolower(trim($last))),
